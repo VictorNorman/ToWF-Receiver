@@ -7,6 +7,8 @@ import java.util.List;
 import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
 import com.briggs_inc.towf_receiver.R;
 import com.briggs_inc.towf_receiver.NetworkPlaybackService.NpServiceBinder;
+
+import android.os.Build;
 import android.support.v7.app.ActionBarActivity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningServiceInfo;
@@ -237,10 +239,14 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     	Log.v(TAG, "onResume()");
     	
     	// Wi-Fi Label
-        WifiManager wifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
-        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-        wifiConnection.setText(wifiInfo.getSSID());
-        
+        if (Build.FINGERPRINT.contains("generic")) {
+            wifiConnection.setText("Tercume");  // Just to make screenshots look nicer from the Emulator.
+        } else {
+            WifiManager wifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            wifiConnection.setText(wifiInfo.getSSID());
+        }
+
         updateGuiToReflectSystemState();
         
     	super.onResume();
