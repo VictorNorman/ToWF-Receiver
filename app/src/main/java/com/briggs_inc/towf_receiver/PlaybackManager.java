@@ -108,55 +108,57 @@ public class PlaybackManager {
 		// Return what the playback speed changed to (or -1 if playback speed doesn't need to change)
 		
 		// Check if playback should be changed to Faster, Slower, or Normal speed - or keep it unchanged
-		
-        float totalNumSecondsWritten = Util.convertAudioSamplesToSeconds(totalNumSamplesWrittenToBuffer, audioFormat);
-        float totalNumSecondsPlayed = Util.convertAudioSamplesToSeconds(line.getPlaybackHeadPosition(), audioFormat);
-        float numSecondsInBuffer = totalNumSecondsWritten - totalNumSecondsPlayed;
-        
-        //Log.d(TAG, "totalNumSecondsWritten: " + totalNumSecondsWritten);
-        //Log.d(TAG, "totalNumSecondsPlayed: " + totalNumSecondsPlayed);
-        //Log.d(TAG, "secs in buffer: " + numSecondsInBuffer);
-        
-        if (numSecondsInBuffer > desiredDelay + desiredDelay/2.0) {
-        	if (!playFaster) {
-        		Log.v(TAG, "Time to play FASTER.");
-        		playFaster = true;
-        		playSlower = false;
-        		line.setPlaybackRate((int)(audioFormat.SampleRate * FASTER_PLAYBACK_MULTIPLIER));
-        		playbackSpeed = PLAYBACK_SPEED_FASTER; 
-        		return playbackSpeed;
-        	}
-        } else if (numSecondsInBuffer < desiredDelay - desiredDelay/2.0) {
-        	if (!playSlower) {
-        		Log.v(TAG, "Time to play SLOWER.");
-        		playSlower = true;
-        		playFaster = false;
-        		line.setPlaybackRate((int)(audioFormat.SampleRate * SLOWER_PLAYBACK_MULTIPLIER));
-        		playbackSpeed = PLAYBACK_SPEED_SLOWER;
-        		return playbackSpeed;
-        	}
-        } else {
-        	if (playFaster) {
-        		if (numSecondsInBuffer < desiredDelay) {
-        			Log.v(TAG, "Time to play NORMAL speed (after playing faster)");
-            		line.setPlaybackRate(audioFormat.SampleRate);
-            		playFaster = false;
-            		playSlower = false;
-            		playbackSpeed = PLAYBACK_SPEED_NORMAL;
-            		return playbackSpeed;
-        		}
-        	} else if (playSlower) {
-        		if (numSecondsInBuffer > desiredDelay) {
-        			Log.v(TAG, "Time to play NORMAL speed (after playing slower)");
-            		line.setPlaybackRate(audioFormat.SampleRate);
-            		playFaster = false;
-            		playSlower = false;
-            		playbackSpeed = PLAYBACK_SPEED_NORMAL;
-            		return playbackSpeed;
-        		}
-        	}
+
+        if (line != null) {  // only if we have a line to work with
+            float totalNumSecondsWritten = Util.convertAudioSamplesToSeconds(totalNumSamplesWrittenToBuffer, audioFormat);
+            float totalNumSecondsPlayed = Util.convertAudioSamplesToSeconds(line.getPlaybackHeadPosition(), audioFormat);
+            float numSecondsInBuffer = totalNumSecondsWritten - totalNumSecondsPlayed;
+
+            //Log.d(TAG, "totalNumSecondsWritten: " + totalNumSecondsWritten);
+            //Log.d(TAG, "totalNumSecondsPlayed: " + totalNumSecondsPlayed);
+            //Log.d(TAG, "secs in buffer: " + numSecondsInBuffer);
+
+            if (numSecondsInBuffer > desiredDelay + desiredDelay / 2.0) {
+                if (!playFaster) {
+                    Log.v(TAG, "Time to play FASTER.");
+                    playFaster = true;
+                    playSlower = false;
+                    line.setPlaybackRate((int) (audioFormat.SampleRate * FASTER_PLAYBACK_MULTIPLIER));
+                    playbackSpeed = PLAYBACK_SPEED_FASTER;
+                    return playbackSpeed;
+                }
+            } else if (numSecondsInBuffer < desiredDelay - desiredDelay / 2.0) {
+                if (!playSlower) {
+                    Log.v(TAG, "Time to play SLOWER.");
+                    playSlower = true;
+                    playFaster = false;
+                    line.setPlaybackRate((int) (audioFormat.SampleRate * SLOWER_PLAYBACK_MULTIPLIER));
+                    playbackSpeed = PLAYBACK_SPEED_SLOWER;
+                    return playbackSpeed;
+                }
+            } else {
+                if (playFaster) {
+                    if (numSecondsInBuffer < desiredDelay) {
+                        Log.v(TAG, "Time to play NORMAL speed (after playing faster)");
+                        line.setPlaybackRate(audioFormat.SampleRate);
+                        playFaster = false;
+                        playSlower = false;
+                        playbackSpeed = PLAYBACK_SPEED_NORMAL;
+                        return playbackSpeed;
+                    }
+                } else if (playSlower) {
+                    if (numSecondsInBuffer > desiredDelay) {
+                        Log.v(TAG, "Time to play NORMAL speed (after playing slower)");
+                        line.setPlaybackRate(audioFormat.SampleRate);
+                        playFaster = false;
+                        playSlower = false;
+                        playbackSpeed = PLAYBACK_SPEED_NORMAL;
+                        return playbackSpeed;
+                    }
+                }
+            }
         }
-        
+
         return PLAYBACK_SPEED_UNCHANGED;  // -1
 	}
 
