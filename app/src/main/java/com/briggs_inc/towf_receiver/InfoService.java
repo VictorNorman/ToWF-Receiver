@@ -29,9 +29,9 @@ import android.os.Build;
 
 import android.os.IBinder;
 import android.util.Log;
-import com.briggs_inc.towf_receiver.Util;
 
 interface InfoServiceListener {
+    public void onAudioFormatChanged(AudioFormatStruct af);
 	public void onLppListChanged(List<LangPortPair> lppList);
 	public void onServerStoppedStreaming();
 	public void onServerStartedStreaming();
@@ -60,7 +60,8 @@ public class InfoService extends IntentService {
 	Boolean isServerStreaming = false;
 	
 	NetworkManager netMan;
-	
+
+    AudioFormatStruct currAudioFormat;
 	List<LangPortPair> lppList = new ArrayList<LangPortPair>();
 	
 	public class OnServerStoppedStreamingTask extends TimerTask {
@@ -113,6 +114,9 @@ public class InfoService extends IntentService {
 	    while (isRunning) {
 	    	try {
 				datagram = netMan.receiveDatagram();
+                if (datagram == null) {
+                    continue;  // to next iteration of while loop
+                }
 			} catch (SocketTimeoutException ex) {
 				continue;  // to next while loop iteration
 			} catch (SocketException ex) {  // for .setSoTimeout() 
@@ -136,8 +140,27 @@ public class InfoService extends IntentService {
 					notifyListenersServerStartedStreaming();
 				}
 				isServerStreaming = true;
-				
-				if (payload instanceof LangPortPairsPayload) {
+
+                if (payload instanceof PcmAudioFormatPayload) {
+                    // === Audio Format ===
+                    PcmAudioFormatPayload pcmAudioFormatPayload = (PcmAudioFormatPayload) payload;
+                    AudioFormatStruct plAudioFormat = pcmAudioFormatPayload.AudioFormat;
+                    if (!plAudioFormat.equals(currAudioFormat)) {
+
+                        // Create new currAudioFormat
+                        currAudioFormat = new AudioFormatStruct(plAudioFormat.SampleRate, plAudioFormat.SampleSizeInBits, plAudioFormat.Channels, plAudioFormat.IsSigned, plAudioFormat.IsBigEndian);
+
+                        // Print
+                        Log.i(TAG, "New Audio Format:");
+                        Log.i(TAG, " sampleRate: " + currAudioFormat.SampleRate);
+                        Log.i(TAG, " sampleSizeInBits: " + currAudioFormat.SampleSizeInBits);
+                        Log.i(TAG, " channels: " + currAudioFormat.Channels);
+                        Log.i(TAG, " isSigned: " + currAudioFormat.IsSigned);
+                        Log.i(TAG, " isBigEndian: " + currAudioFormat.IsBigEndian);
+
+                        notifyListenersOnAudioFormatChanged(currAudioFormat);
+                    }
+                } else if (payload instanceof LangPortPairsPayload) {
 					LangPortPairsPayload lppPayload = (LangPortPairsPayload) payload;
 					
 					resetServerStreamWatchdogTimer();
@@ -161,7 +184,9 @@ public class InfoService extends IntentService {
 						notifyListenersOnLppListChanged(lppList);
 					}
 					
-				}
+				} else {
+                    Log.w(TAG, "Hmm, received a packet/payload, but is an unexpected or unknown type...");
+                }
 			}
 	    }
 	    // Think I don't need this here, but shouldn't hurt...
@@ -203,7 +228,13 @@ public class InfoService extends IntentService {
 		
 		super.onDestroy();
 	}
-	
+
+    private void notifyListenersOnAudioFormatChanged(AudioFormatStruct af) {
+        for (InfoServiceListener listener : listeners) {
+            listener.onAudioFormatChanged(af);
+        }
+    }
+
 	private void notifyListenersOnLppListChanged(List<LangPortPair> lppList) {
     	for (InfoServiceListener listener : listeners) {
     		listener.onLppListChanged(lppList);
@@ -248,8 +279,7 @@ public class InfoService extends IntentService {
 		}
 		
 	}
-	
-	
+
 	private void cleanUp() {
 		Log.v(TAG, "InfoService::cleanUp()");
 		netMan.cleanUp();

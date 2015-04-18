@@ -5,7 +5,6 @@ import java.net.DatagramSocket;
 import java.util.ArrayList;
 import java.util.List;
 import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
-import com.briggs_inc.towf_receiver.R;
 import com.briggs_inc.towf_receiver.NetworkPlaybackService.NpServiceBinder;
 
 import android.os.Build;
@@ -73,6 +72,8 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     
     InfoService infoService;
     Boolean isBoundToInfoService = false;
+
+    AudioFormatStruct audioFormat = null;
     
     int streamPort;
     
@@ -93,6 +94,11 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			isBoundToNpService = true;
 			
 			npService.addListener(MainActivity.this);
+
+            if (audioFormat != null) {
+                npService.onAudioFormatChanged(audioFormat);
+            }
+
 			
 			updateGuiToReflectSystemState();
 		}
@@ -384,6 +390,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 	    streamPort = ((LangPortPair)languageSpinner.getSelectedItem()).Port;
     	npServiceIntent.putExtra(STREAM_PORT_KEY, streamPort);
     	npServiceIntent.putExtra(DESIRED_DELAY_KEY, Float.valueOf(desiredDelayLabel.getText().toString()));
+        //npServiceIntent.putExtra(AUDIO_FORMAT_KEY, currAudioFormat);
     	startService(npServiceIntent);
     	
     	// Bind to the NetworkPlayback Service
@@ -519,8 +526,13 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 	
 	@Override
 	public void onAudioFormatChanged(AudioFormatStruct af) {
-		// TODO Auto-generated method stub
-		// ??? Do we need this ???
+        Log.v(TAG, "onAudioFormatChanged(): " + af.SampleRate);
+        audioFormat = af;
+
+        if (npService != null && isBoundToNpService) {
+            Log.v(TAG, "npService is NOT null. Telling npServer about AudioFormat change...");
+            npService.onAudioFormatChanged(af);
+        }
 	}
 	
 	

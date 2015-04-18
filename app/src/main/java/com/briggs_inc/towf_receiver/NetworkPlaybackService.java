@@ -47,26 +47,25 @@ public class NetworkPlaybackService extends IntentService {
 	
     DatagramSocket sock;
     
-    DatagramPacket datagram;
     byte dgData[];
     
     boolean isListening;
-	private boolean isAudioFormatValid;
+	private boolean isAudioFormatValid = true;  //???delete???
 
 	private short audioDataShort[]; // For a line setup as: AudioFormat.ENCODING_PCM_16BIT
 
 	AudioTrack line;
 
-	AudioFormatStruct audioFormat;
-	
-    long lastNumReceivedAudioDataPackets;
+	long lastNumReceivedAudioDataPackets;
 	long totalNumSamplesWritten;
 
 	private boolean isReceivingAudio;
 	private int channelMultiplier;
 	
 	int streamPort = 0;
-	
+
+    DatagramPacket datagram;
+
 	NetworkManager netMan;
 	PlaybackManager pbMan;
 	
@@ -95,17 +94,18 @@ public class NetworkPlaybackService extends IntentService {
 	
 	public NetworkPlaybackService() {
 		super("NetworkPlaybackService");
+        pbMan = new PlaybackManager();
 	}
 
 	@Override
 	protected void onHandleIntent(Intent intent) {
 		// Create our instance of Playback Manager
-     	pbMan = new PlaybackManager();
-     	
+
 		Bundle extras = intent.getExtras();
 		if (extras != null && intent.getExtras().getInt(STREAM_PORT_KEY) != 0) {
 			streamPort = intent.getExtras().getInt(STREAM_PORT_KEY, 7770);
 			pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
+            //pbMan.createNewSpeakerLine();
 		} else {
 			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from it's intent. Unable to start service.");
 			return;
@@ -142,7 +142,7 @@ public class NetworkPlaybackService extends IntentService {
         //Log.v(TAG, "Creating New DatagramSocket (for Broadcast)...");
      	
         isListening = true;
-        isAudioFormatValid = false;
+        //isAudioFormatValid = false;
         
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -156,7 +156,10 @@ public class NetworkPlaybackService extends IntentService {
         
 		while (isListening) {
 			try {
-				netMan.receiveDatagram();
+				datagram = netMan.receiveDatagram();  // Hangs (blocks) here until packet is received (or times out)... (but doesn't use CPU resources while blocking)
+                if (datagram == null) {
+                    continue;  // to next iteration of while loop
+                }
 			} catch (SocketTimeoutException ex) {
 				//Log.d(TAG, "ExNote: SocketTimeoutException in NpService.\nExMessage: " + ex.getMessage());
 				continue;  // to next while loop iteration
@@ -177,31 +180,8 @@ public class NetworkPlaybackService extends IntentService {
 			Payload payload = netMan.getPayload();
 			
 			if (payload != null) {
-				if (payload instanceof PcmAudioFormatPayload) {
-					// === Audio Format ===
-					PcmAudioFormatPayload pcmAudioFormatPayload = (PcmAudioFormatPayload) payload;
-					AudioFormatStruct plAudioFormat = pcmAudioFormatPayload.AudioFormat;
-					if (!plAudioFormat.equals(audioFormat)) {
-						
-						// Create new audioFormat
-	                    audioFormat = new AudioFormatStruct(plAudioFormat.SampleRate, plAudioFormat.SampleSizeInBits, plAudioFormat.Channels, plAudioFormat.IsSigned, plAudioFormat.IsBigEndian);
-	                    
-						// Print
-	                    Log.i(TAG, "New Audio Format:");
-	                    Log.i(TAG, " sampleRate: " + audioFormat.SampleRate);
-	                    Log.i(TAG, " sampleSizeInBits: " + audioFormat.SampleSizeInBits);
-	                    Log.i(TAG, " channels: " + audioFormat.Channels);
-	                    Log.i(TAG, " isSigned: " + audioFormat.IsSigned);
-	                    Log.i(TAG, " isBigEndian: " + audioFormat.IsBigEndian);
-	                
-	                    notifyListenersOnAudioFormatChanged(audioFormat);
-
-	                    pbMan.createNewSpeakerLine(audioFormat);
-
-	                    isAudioFormatValid = true;  //??? Maybe later, check to make sure the format actually IS valid data.  //??? Do we need this anymore???
-					}
-					
-				} else if (payload instanceof PcmAudioDataPayload) {
+				if (payload instanceof PcmAudioDataPayload) {
+                    //Log.v(TAG, "payload is instanceof PcmAudioDataPayload");
 					// === Audio Data ===
 					PcmAudioDataPayload pcmAudioDataPayload = (PcmAudioDataPayload) payload;
 					
@@ -216,7 +196,8 @@ public class NetworkPlaybackService extends IntentService {
 	                receivingAudioWatchdogTimer = new Timer();
 	                TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
 	                receivingAudioWatchdogTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
-	                
+
+                    //Log.v(TAG, "isAudioFormatValid: " + isAudioFormatValid);
 	                if (isAudioFormatValid) {
 	                	pbMan.handleAudioDataPayload(pcmAudioDataPayload);
 	                	int newPlaybackSpeed = pbMan.changePlaybackSpeedIfNeeded();
@@ -225,10 +206,10 @@ public class NetworkPlaybackService extends IntentService {
 	                	}
 	                }
 				} else {
-					Log.w(TAG, "Hmm, received a packet/payload, but is on unknown type...");
+					Log.w(TAG, "Hmm, received a packet/payload, but is an unexpected type...");
 				}
-			}  // end if payload != null
-		}  // end while
+			}
+		}
 		
 		cleanUp();
 	}
@@ -268,7 +249,13 @@ public class NetworkPlaybackService extends IntentService {
     
     private void cleanUp() {
         Log.v(TAG, "NpService::cleanUp");
-        
+
+        if (receivingAudioWatchdogTimer != null) {
+            receivingAudioWatchdogTimer.cancel();
+            receivingAudioWatchdogTimer.purge();
+            receivingAudioWatchdogTimer = null;
+        }
+
         if (pbMan != null) {
         	pbMan.cleanUp();
         }
@@ -300,11 +287,12 @@ public class NetworkPlaybackService extends IntentService {
     		listener.onNpServiceFinished();
     	}
 	}
-    
-    private void notifyListenersOnAudioFormatChanged(AudioFormatStruct af) {
-    	for (NetworkPlaybackServiceListener listener : listeners) {
-    		listener.onAudioFormatChanged(af);
-    	}
+
+    public void onAudioFormatChanged(AudioFormatStruct af) {
+        Log.v(TAG, "onAudioFormatChanged() to: " + af.SampleRate + ". Creating new speaker line");
+        //currAudioFormat = af;
+        pbMan.createNewSpeakerLine(af);
+        isAudioFormatValid = true;  //??? Maybe later, check to make sure the format actually IS valid data.  //??? Do we need this anymore???
     }
 
     public void addListener(NetworkPlaybackServiceListener listener) {

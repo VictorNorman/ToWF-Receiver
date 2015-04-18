@@ -52,11 +52,14 @@ public class NetworkManager {
 	}
 	
 	public DatagramPacket receiveDatagram() throws SocketException, SocketTimeoutException, IOException {
-		// returns true if received a packet, false if no packet received (e.g. timeout or other error occured)
 		DatagramPacket dg = new DatagramPacket(dgData, dgData.length);
-		socket.setSoTimeout(receiveTimeoutMs);
-		socket.receive(dg);  // Hangs (blocks) here until packet is received... (but doesn't use CPU resources while blocking)
-		return dg;
+		if (socket != null) {
+            socket.setSoTimeout(receiveTimeoutMs);
+            socket.receive(dg);  // Hangs (blocks) here until packet is received (or times out)... (but doesn't use CPU resources while blocking)
+            return dg;
+        } else {
+            return null;
+        }
 	}
 	
 	public void sendDatagram(DatagramPacket dg) throws IOException {
