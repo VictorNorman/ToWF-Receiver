@@ -124,6 +124,29 @@
                 android:max="200"
                 android:progress="100" />
 
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+
+                <EditText
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/chatMsgTF"
+                    android:layout_weight="1"
+                    android:imeOptions="actionSend"
+                    android:hint="Chat with Server"
+                    android:lines="1"
+                    android:inputType="text|textCapSentences|textAutoCorrect" />
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Send"
+                    android:id="@+id/sendChatMsgBtn"
+                    android:onClick="onSendChatMsgClicked" />
+            </LinearLayout>
+
             <ScrollView
                 android:id="@+id/svDebug"
                 android:layout_width="match_parent"

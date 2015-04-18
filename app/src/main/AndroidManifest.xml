@@ -25,8 +25,9 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name="com.briggs_inc.towf_receiver.MainActivity"
-            android:windowSoftInputMode="stateHidden"
+            android:windowSoftInputMode="stateHidden|adjustPan"
             android:label="@string/app_name" >
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

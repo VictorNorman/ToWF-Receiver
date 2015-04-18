@@ -21,13 +21,13 @@ public class PacketConstants {
     public static final int DG_DATA_HEADER_CHANNEL_LENGTH = 1; // Rsvd
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_START = 5;
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_LENGTH = 1;
-    
+
+    // Payload Types
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_FORMAT = 0;
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA = 1;
-    
-    // Info Datagram (port 7769)
-    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_LANG_PORT_PAIRS = 2;  // NOTE: Payload Types don't need to be unique across different PORTs, but I'm making them unique just to keep them a bit easier to keep track of. 
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_LANG_PORT_PAIRS = 2;  // NOTE: Payload Types don't need to be unique across different PORTs, but I'm making them unique just to keep them a bit easier to keep track of.
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_CLIENT_LISTENING = 3;
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG = 7;
     
     // OS Constants
     public static final int OS_OTHER = 0;

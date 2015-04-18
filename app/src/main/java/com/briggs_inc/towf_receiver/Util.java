@@ -45,7 +45,7 @@ public class Util {
         }
     }
 	
-	public static void putStringInsideByteArray(String s, byte[] b, int offset, int maxLength) {
+    public static void putNullTermStringInsideByteArray(String s, byte[] b, int offset, int maxLength, boolean padWith0s) {
 		// Assumes US-ASCII string
 		
 		int length = Math.min(s.length(), maxLength);
@@ -56,7 +56,15 @@ public class Util {
 		// Null-terminate it, if there's room.
 		if (i < maxLength) {
 			b[offset + i] = 0x00;
+            i++;
 		}
+
+        // Fill the rest with 0's if padWith0s==true
+        if (padWith0s) {
+            for (int j = i; j < maxLength; j++) {
+                b[offset + j] = 0x00;
+            }
+        }
 	}
 	
 	public static String getNullTermStringFromByteArray(byte[] b, int offset, int maxLength) {

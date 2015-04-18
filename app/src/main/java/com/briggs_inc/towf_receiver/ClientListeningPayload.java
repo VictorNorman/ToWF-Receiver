@@ -57,16 +57,16 @@ public class ClientListeningPayload extends Payload {
 		Util.putIntInsideByteArray(Port, dgDataPayload, CLPL_PORT_START, CLPL_PORT_LENGTH, false);
 		
 		// OS Version
-		Util.putStringInsideByteArray(OsVersion, dgDataPayload, CLPL_OS_VERSION_STR_START, CLPL_OS_VERSION_STR_LENGTH);
+		Util.putNullTermStringInsideByteArray(OsVersion, dgDataPayload, CLPL_OS_VERSION_STR_START, CLPL_OS_VERSION_STR_LENGTH, false);
 		
 		// HW Manufacturer
-		Util.putStringInsideByteArray(HwManufacturer, dgDataPayload, CLPL_HW_MANUFACTURER_STR_START, CLPL_HW_MANUFACTURER_STR_LENGTH);
+		Util.putNullTermStringInsideByteArray(HwManufacturer, dgDataPayload, CLPL_HW_MANUFACTURER_STR_START, CLPL_HW_MANUFACTURER_STR_LENGTH, false);
 		
 		// HW Model
-		Util.putStringInsideByteArray(HwModel, dgDataPayload, CLPL_HW_MODEL_STR_START, CLPL_HW_MODEL_STR_LENGTH);
+		Util.putNullTermStringInsideByteArray(HwModel, dgDataPayload, CLPL_HW_MODEL_STR_START, CLPL_HW_MODEL_STR_LENGTH, false);
 		
 		// Users Name
-		Util.putStringInsideByteArray(UsersName, dgDataPayload, CLPL_USERS_NAME_START, CLPL_USERS_NAME_LENGTH);
+		Util.putNullTermStringInsideByteArray(UsersName, dgDataPayload, CLPL_USERS_NAME_START, CLPL_USERS_NAME_LENGTH, false);
 	}
 
 	public byte[] getDgDataPayloadBytes() {

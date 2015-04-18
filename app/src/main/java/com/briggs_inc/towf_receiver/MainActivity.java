@@ -23,11 +23,15 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
@@ -54,6 +58,8 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     TextView desiredDelayLabel;
     TextView lblReceivingAudio;
     TextView lblPlaybackSpeed;
+    EditText chatMsgTF;
+    Button sendChatMsgBtn;
     TextView debugResults;
     
     
@@ -144,6 +150,8 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         desiredDelayLabel = (TextView) findViewById(R.id.desiredDelayLabel);
         lblReceivingAudio = (TextView) findViewById(R.id.lblReceivingAudio);
         lblPlaybackSpeed = (TextView) findViewById(R.id.lblPlaybackSpeed);
+        chatMsgTF = (EditText) findViewById(R.id.chatMsgTF);
+        sendChatMsgBtn = (Button) findViewById(R.id.sendChatMsgBtn);
         debugResults = (TextView) findViewById(R.id.debugResults);
         
         loadGuiPrefsFromFile();
@@ -155,7 +163,20 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         
         npServiceIntent = new Intent(this, NetworkPlaybackService.class);
         infoServiceIntent = new Intent(this, InfoService.class);
-        
+
+        chatMsgTF.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                boolean handled = false;
+
+                if (actionId == EditorInfo.IME_ACTION_SEND) {
+                    processOutgoingChatMsg();
+                    handled = true;
+                }
+
+                return handled;
+            }
+        });
         desiredDelaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 			
 			@Override
@@ -545,4 +566,38 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 	    }
 	    return false;
 	}
+
+    public void onSendChatMsgClicked(View v) {
+        Log.v(TAG, "onSendChatMsgClicked");
+
+        processOutgoingChatMsg();
+
+    }
+
+    private void processOutgoingChatMsg() {
+        String msg = chatMsgTF.getText().toString();
+
+        if (!msg.equalsIgnoreCase("")) {
+            chatMsgTF.setText("");  // Clear textedit
+            debugResults.setText(debugResults.getText() + "Me: " + msg + "\n");  // Show msg in the debugResults view.
+
+            // Send msg to Server
+            infoService.sendChatMsg(msg);
+        }
+
+		// Hide soft keyboard when "Send" (button or keyboard key) is clicked
+        InputMethodManager inputManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        inputManager.hideSoftInputFromWindow(chatMsgTF.getWindowToken(),InputMethodManager.HIDE_NOT_ALWAYS);
+    }
+
+    @Override
+    public void onChatMsgReceived(final String msg) {
+        // Note: this comes from a thread (other than the UI thread) - and we can't update UI elements from some other thread. So we need to runOnUiThread()
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                debugResults.setText(debugResults.getText().toString() + "Server: " + msg + "\n");
+            }
+        });
+    }
 }

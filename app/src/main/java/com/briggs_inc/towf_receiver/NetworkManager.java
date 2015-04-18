@@ -87,6 +87,9 @@ public class NetworkManager {
 	    	case DG_DATA_HEADER_PAYLOAD_TYPE_LANG_PORT_PAIRS:
 	    		LangPortPairsPayload langPortPairsPayload = new LangPortPairsPayload(dgDataPayload);
 	    		return langPortPairsPayload;
+            case DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG:
+                ChatMsgPayload cmPayload = new ChatMsgPayload(dgDataPayload);
+                return cmPayload;
 	    	default:
 	    		return null;
 		}

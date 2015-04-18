@@ -33,6 +33,7 @@ import android.util.Log;
 interface InfoServiceListener {
     public void onAudioFormatChanged(AudioFormatStruct af);
 	public void onLppListChanged(List<LangPortPair> lppList);
+    public void onChatMsgReceived(String msg);
 	public void onServerStoppedStreaming();
 	public void onServerStartedStreaming();
 }
@@ -161,29 +162,31 @@ public class InfoService extends IntentService {
                         notifyListenersOnAudioFormatChanged(currAudioFormat);
                     }
                 } else if (payload instanceof LangPortPairsPayload) {
-					LangPortPairsPayload lppPayload = (LangPortPairsPayload) payload;
-					
-					resetServerStreamWatchdogTimer();
-					
-					// Save Server's ip (inet) address & port
-					serverInetAddress = datagram.getAddress();
-					serverPort = datagram.getPort();
-					
-					if (!isLppListsSame(lppList, lppPayload.LppList)) {
-						// Lists are not the same, build from scratch
-						lppList.clear();
-						
-						for (int i = 0; i < lppPayload.LppList.size(); i++) {
-							String plLanguage = lppPayload.LppList.get(i).Language;
-							int plPort = lppPayload.LppList.get(i).Port;
-							if (plPort >= 0 && plPort <= 65535) {
-								lppList.add(new LangPortPair(plLanguage, plPort));
-							}
-						}
-						
-						notifyListenersOnLppListChanged(lppList);
-					}
-					
+                    LangPortPairsPayload lppPayload = (LangPortPairsPayload) payload;
+
+                    resetServerStreamWatchdogTimer();
+
+                    // Save Server's ip (inet) address & port
+                    serverInetAddress = datagram.getAddress();
+                    serverPort = datagram.getPort();
+
+                    if (!isLppListsSame(lppList, lppPayload.LppList)) {
+                        // Lists are not the same, build from scratch
+                        lppList.clear();
+
+                        for (int i = 0; i < lppPayload.LppList.size(); i++) {
+                            String plLanguage = lppPayload.LppList.get(i).Language;
+                            int plPort = lppPayload.LppList.get(i).Port;
+                            if (plPort >= 0 && plPort <= 65535) {
+                                lppList.add(new LangPortPair(plLanguage, plPort));
+                            }
+                        }
+
+                        notifyListenersOnLppListChanged(lppList);
+                    }
+                } else if (payload instanceof ChatMsgPayload) {
+                    ChatMsgPayload cmPayload = (ChatMsgPayload) payload;
+                    notifyListenersOnChatMsgReceived(cmPayload.Msg);
 				} else {
                     Log.w(TAG, "Hmm, received a packet/payload, but is an unexpected or unknown type...");
                 }
@@ -240,6 +243,12 @@ public class InfoService extends IntentService {
     		listener.onLppListChanged(lppList);
     	}
 	}
+
+    private void notifyListenersOnChatMsgReceived(String msg) {
+        for (InfoServiceListener listener : listeners) {
+            listener.onChatMsgReceived(msg);
+        }
+    }
 	
 	public void sendClientListening(boolean isListening, int port) {
 		listeningPort = port;
@@ -273,12 +282,37 @@ public class InfoService extends IntentService {
 		
 		try {
 			netMan.sendDatagram(clDatagramPacket);
-			netMan.sendDatagram(clDatagramPacket);  // Send it twice, in case 1 gets lost!
 		} catch (IOException e) {
 			Log.v(TAG, "ExNote: Sending clDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
 		}
 		
 	}
+
+    public void sendChatMsg(String msg) {
+        byte dgData[] = new byte[UDP_DATA_SIZE];
+
+        // "ToWF" Header
+        Util.writeDgDataHeaderToByteArray(dgData, DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG);
+
+        // Create a ChatMsgPayload object
+        ChatMsgPayload cmPayload = new ChatMsgPayload(msg) ;
+
+        // Get out payload bytes
+        byte dgDataPayload[] = cmPayload.getDgDataPayloadBytes();
+
+        // Append the payload to the dgData array (after the "ToWF" header)
+        System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
+
+        // Build our datagram packet & send it.
+        int dataLength = DG_DATA_HEADER_LENGTH + msg.length() + 1;  // +1 for the null-terminator
+        DatagramPacket cmDatagramPacket = new DatagramPacket(dgData, dataLength, serverInetAddress, serverPort);
+
+        try {
+            netMan.sendDatagram(cmDatagramPacket);
+        } catch (IOException e) {
+            Log.v(TAG, "ExNote: Sending cmDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
+        }
+    }
 
 	private void cleanUp() {
 		Log.v(TAG, "InfoService::cleanUp()");
