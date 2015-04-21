@@ -1,7 +1,8 @@
 package com.briggs_inc.towf_receiver;
 
 public class AudioFormatStruct {
-	public int SampleRate;
+	//public int SampleRate;
+    public float SampleRate;
 	public int SampleSizeInBits;
 	public int Channels;
 	public boolean IsSigned;
@@ -11,7 +12,7 @@ public class AudioFormatStruct {
 	public int SampleSizeInBytes;
 	
 	
-	public AudioFormatStruct(int sampleRate, int sampleSizeInBits, int channels, boolean isSigned, boolean isBigEndian) {
+	public AudioFormatStruct(float sampleRate, int sampleSizeInBits, int channels, boolean isSigned, boolean isBigEndian) {
 		this.SampleRate = sampleRate;
 		this.SampleSizeInBits = sampleSizeInBits;
 		this.Channels = channels;

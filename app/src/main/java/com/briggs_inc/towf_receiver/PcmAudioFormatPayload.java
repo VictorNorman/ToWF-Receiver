@@ -1,5 +1,7 @@
 package com.briggs_inc.towf_receiver;
 
+import static com.briggs_inc.towf_receiver.PacketConstants.*;
+
 public class PcmAudioFormatPayload extends Payload {
 	private static final String TAG = "PcmAudioFormatPayload";
 	
@@ -18,13 +20,14 @@ public class PcmAudioFormatPayload extends Payload {
     // "Struct" variables
     public AudioFormatStruct AudioFormat;
 	
-	public PcmAudioFormatPayload(byte[] dgDataPayload) {
+	//public PcmAudioFormatPayload(byte[] dgDataPayload) {
+    public PcmAudioFormatPayload(byte[] dgData) {
 		AudioFormat = new AudioFormatStruct(
-			Util.getIntFromByteArray(dgDataPayload, AFDG_SAMPLE_RATE_START, AFDG_SAMPLE_RATE_LENGTH, false),
-			Util.getIntFromByteArray(dgDataPayload, AFDG_SAMPLE_SIZE_IN_BITS_START, AFDG_SAMPLE_SIZE_IN_BITS_LENGTH, false),
-			Util.getIntFromByteArray(dgDataPayload, AFDG_CHANNELS_START, AFDG_CHANNELS_LENGTH, false),
-			Util.getIntFromByteArray(dgDataPayload, AFDG_SIGNED_START, AFDG_SIGNED_LENGTH, false) == 1,
-			Util.getIntFromByteArray(dgDataPayload, AFDG_BIG_ENDIAN_START, AFDG_BIG_ENDIAN_LENGTH, false) == 1
+			Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + AFDG_SAMPLE_RATE_START, AFDG_SAMPLE_RATE_LENGTH, false),
+			Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + AFDG_SAMPLE_SIZE_IN_BITS_START, AFDG_SAMPLE_SIZE_IN_BITS_LENGTH, false),
+			Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + AFDG_CHANNELS_START, AFDG_CHANNELS_LENGTH, false),
+			Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + AFDG_SIGNED_START, AFDG_SIGNED_LENGTH, false) == 1,
+			Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + AFDG_BIG_ENDIAN_START, AFDG_BIG_ENDIAN_LENGTH, false) == 1
 		); 
 	}
 }

@@ -1,5 +1,6 @@
 package com.briggs_inc.towf_receiver;
 
+import static com.briggs_inc.towf_receiver.PacketConstants.DG_DATA_HEADER_LENGTH;
 import static com.briggs_inc.towf_receiver.PacketConstants.UDP_DATA_PAYLOAD_SIZE;
 
 /**
@@ -25,9 +26,9 @@ public class ChatMsgPayload extends Payload {
     }
 
     // Constructor - for receiving a Chat Msg Packet
-    public ChatMsgPayload(byte[] dgDataPayload) {
-        //int numLangPortPairs = Util.getIntFromByteArray(dgDataPayload, LPP_NUM_PAIRS_START, LPP_NUM_PAIRS_LENGTH, false);
-        this.Msg = Util.getNullTermStringFromByteArray(dgDataPayload, CHATMSG_MSG_START, dgDataPayload.length);
+    //public ChatMsgPayload(byte[] dgDataPayload) {
+    public ChatMsgPayload(byte[] dgData) {
+        this.Msg = Util.getNullTermStringFromByteArray(dgData, DG_DATA_HEADER_LENGTH + CHATMSG_MSG_START, dgData.length - DG_DATA_HEADER_LENGTH);
     }
 
     public byte[] getDgDataPayloadBytes() {

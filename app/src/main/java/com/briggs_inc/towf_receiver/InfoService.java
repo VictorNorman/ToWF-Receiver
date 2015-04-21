@@ -274,7 +274,7 @@ public class InfoService extends IntentService {
 		// Get out payload bytes
 		byte dgDataPayload[] = clPayload.getDgDataPayloadBytes();
 		
-		// Append the payload to the dgData array (after the "ToWF" header)
+		// Append the payload to the DgData array (after the "ToWF" header)
 		System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
 		
 		// Build our datagram packet & send it.
@@ -285,8 +285,48 @@ public class InfoService extends IntentService {
 		} catch (IOException e) {
 			Log.v(TAG, "ExNote: Sending clDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
 		}
-		
 	}
+
+    public void sendMissingPacketRequest(int port, List<PcmAudioDataPayload> missingPackets) {
+        Log.v(TAG, String.format("sendMissingPacketRequest(%d, %d)", port, missingPackets.size()));
+        if (missingPackets.size() == 0) {
+            return;  // Don't send anything if we don't have missing packets
+        }
+
+        int remainingMissingPacketsToSend = missingPackets.size();
+        int numMissingPacketsSent = 0;
+        while (remainingMissingPacketsToSend > 0) {
+            int currNumMissingPacketsToSend = Math.min(remainingMissingPacketsToSend, MprPayload.MPRPL_PACKETS_AVAILABLE_SIZE / 2);
+
+            // === Build "MPR" packet ===
+            byte dgData[] = new byte[UDP_DATA_SIZE];
+
+            // "ToWF" Header
+            Util.writeDgDataHeaderToByteArray(dgData, DG_DATA_HEADER_PAYLOAD_TYPE_MISSING_PACKETS_REQUEST);
+
+            // Create an MprPayload object
+            MprPayload mprPayload = new MprPayload(port, missingPackets.subList(numMissingPacketsSent, numMissingPacketsSent + currNumMissingPacketsToSend));
+
+            // Get out payload bytes
+            byte dgDataPayload[] = mprPayload.getDgDataPayloadBytes();
+
+            // Append the payload to the DgData array (after the "ToWF" header)
+            System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
+
+            // Build our datagram packet & send it.
+            DatagramPacket mprDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
+
+            try {
+                netMan.sendDatagram(mprDatagramPacket);
+                //netMan.sendDatagramSync(mprDatagramPacket);
+            } catch (IOException e) {
+                Log.v(TAG, "ExNote: Sending mprDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
+            }
+
+            numMissingPacketsSent += currNumMissingPacketsToSend;
+            remainingMissingPacketsToSend -= currNumMissingPacketsToSend;
+        }
+    }
 
     public void sendChatMsg(String msg) {
         byte dgData[] = new byte[UDP_DATA_SIZE];
@@ -300,7 +340,7 @@ public class InfoService extends IntentService {
         // Get out payload bytes
         byte dgDataPayload[] = cmPayload.getDgDataPayloadBytes();
 
-        // Append the payload to the dgData array (after the "ToWF" header)
+        // Append the payload to the DgData array (after the "ToWF" header)
         System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
 
         // Build our datagram packet & send it.

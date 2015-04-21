@@ -24,10 +24,16 @@ public class PacketConstants {
 
     // Payload Types
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_FORMAT = 0;
-    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA = 1;
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_REGULAR = 1;
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_LANG_PORT_PAIRS = 2;  // NOTE: Payload Types don't need to be unique across different PORTs, but I'm making them unique just to keep them a bit easier to keep track of.
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_CLIENT_LISTENING = 3;
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_MISSING_PACKETS_REQUEST = 4;
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_MISSING = 5;
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_ENABLE_MPRS = 6;
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG = 7;
+
+    // Audio Data Payload Constants
+    public static final int ADPL_AUDIO_DATA_AVAILABLE_SIZE = UDP_DATA_PAYLOAD_SIZE - PcmAudioDataPayload.ADPL_HEADER_LENGTH;
     
     // OS Constants
     public static final int OS_OTHER = 0;

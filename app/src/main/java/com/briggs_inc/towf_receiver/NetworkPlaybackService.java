@@ -16,10 +16,8 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioTrack;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
 import android.os.Binder;
@@ -36,9 +34,10 @@ interface NetworkPlaybackServiceListener {
 	public void onPlaybackSpeedStatusChanged(int playbackSpeed);
 	public void onNpServiceFinished();
 	public void onAudioFormatChanged(AudioFormatStruct af);
+    public void onMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPackets);
 }
 
-public class NetworkPlaybackService extends IntentService {
+public class NetworkPlaybackService extends IntentService implements PlaybackManagerListener {
 	private static final String TAG = "NetPlayService";
 	
     List<NetworkPlaybackServiceListener> listeners = new ArrayList<NetworkPlaybackServiceListener>();
@@ -54,10 +53,11 @@ public class NetworkPlaybackService extends IntentService {
 
 	private short audioDataShort[]; // For a line setup as: AudioFormat.ENCODING_PCM_16BIT
 
-	AudioTrack line;
-
+	//AudioTrack line;
+    long currNumReceivedAudioDataPackets;
 	long lastNumReceivedAudioDataPackets;
-	long totalNumSamplesWritten;
+
+    long totalNumSamplesWritten;
 
 	private boolean isReceivingAudio;
 	private int channelMultiplier;
@@ -71,19 +71,31 @@ public class NetworkPlaybackService extends IntentService {
 	
 	NpServiceBinder npServiceBinder = new NpServiceBinder();
 	
-	Timer receivingAudioWatchdogTimer = new Timer();
+	Timer receivingAudioTimer = new Timer();
 	
 	WifiLock wifiLock;
     WakeLock wakeLock;
-	
-	
-	public class OnCurrentlyNotReceivingAudioTask extends TimerTask {
+
+
+    /*
+    public class OnCurrentlyNotReceivingAudioTask extends TimerTask {
 		@Override
 		public void run() {
 			Log.v(TAG, "Not receiving audio...");
 			NetworkPlaybackService.this.onCurrentlyNotReceivingAudio();
 		}
 	}
+	*/
+    public class CheckIfReceivingAudioTask extends TimerTask {
+        @Override
+        public void run() {
+            if (currNumReceivedAudioDataPackets == lastNumReceivedAudioDataPackets) {
+                Log.v(TAG, "Not receiving audio...");
+                NetworkPlaybackService.this.onCurrentlyNotReceivingAudio();
+            }
+            lastNumReceivedAudioDataPackets = currNumReceivedAudioDataPackets;
+        }
+    }
 	
 	public class NpServiceBinder extends Binder {
 		public NetworkPlaybackService getService() {
@@ -104,8 +116,10 @@ public class NetworkPlaybackService extends IntentService {
 		Bundle extras = intent.getExtras();
 		if (extras != null && intent.getExtras().getInt(STREAM_PORT_KEY) != 0) {
 			streamPort = intent.getExtras().getInt(STREAM_PORT_KEY, 7770);
-			pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
+			pbMan.addListener(this);
+            pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
             //pbMan.createNewSpeakerLine();
+            pbMan.setSendMissingPacketRequestsEnabled(intent.getExtras().getBoolean(SEND_MPRS_ENABLED_KEY, false));
 		} else {
 			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from it's intent. Unable to start service.");
 			return;
@@ -118,11 +132,13 @@ public class NetworkPlaybackService extends IntentService {
 			String msg = "ExNote: Unable to set a new NetworkManager with port: " + streamPort + "\nExMessage: " + ex.getMessage(); 
             Log.v(TAG, msg);
             Log.v(TAG, "ERROR: NetworkPlaybackService NOT started");
-            cleanUp();
+            //cleanUp();
+            // After this destroy() gets called, right? If so, just let destroy() call cleanUp().
             return;  // We can't do anything without a connected network manger
 		}
 		
 		// Basic init's
+        currNumReceivedAudioDataPackets = 0;
         lastNumReceivedAudioDataPackets = 0;
         totalNumSamplesWritten = 0;
 		
@@ -143,6 +159,12 @@ public class NetworkPlaybackService extends IntentService {
      	
         isListening = true;
         //isAudioFormatValid = false;
+
+        // Start the ReceivingAudio timer
+        receivingAudioTimer = new Timer();
+        //TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
+        //receivingAudioTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+        receivingAudioTimer.schedule(new CheckIfReceivingAudioTask(), 200, 200);  //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
         
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -157,7 +179,7 @@ public class NetworkPlaybackService extends IntentService {
 		while (isListening) {
 			try {
 				datagram = netMan.receiveDatagram();  // Hangs (blocks) here until packet is received (or times out)... (but doesn't use CPU resources while blocking)
-                if (datagram == null) {
+                if (datagram == null || !isListening) {
                     continue;  // to next iteration of while loop
                 }
 			} catch (SocketTimeoutException ex) {
@@ -167,16 +189,20 @@ public class NetworkPlaybackService extends IntentService {
 				// Probably something serious that will keep recurring, so exit this Service
 				Log.e(TAG, "ExNote: SocketException while receiving packet.\nExMessage: " + ex.getMessage());
 				Log.e(TAG, "ERROR: NetworkPlaybackService is FINISHED");
-	            cleanUp();
+	            //cleanUp();
+                // After this destroy() gets called, right? If so, just let destroy() call cleanUp().
 	            return;
 			} catch (IOException ex) {  // for .receive()
 				// Probably something serious that will keep recurring, so exit this Service
 				Log.e(TAG, "ExNote: IOException while receiving packet.\nExMessage: " + ex.getMessage());
 				Log.e(TAG, "ERROR: NetworkPlaybackService is FINISHED");
-	            cleanUp();
+	            //cleanUp();
+                // After this destroy() gets called, right? If so, just let destroy() call cleanUp().
 	            return;
 			}
-			
+
+            currNumReceivedAudioDataPackets++;
+
 			Payload payload = netMan.getPayload();
 			
 			if (payload != null) {
@@ -187,23 +213,30 @@ public class NetworkPlaybackService extends IntentService {
 					
 					
 					if (!isReceivingAudio) {
-	                	Log.v(TAG, "...Receiving audio again");
+	                	Log.v(TAG, "...Receiving audio again ");
 	                	notifyListenersOnReceivingAudioStatusChanged(true);
 	                }
 	                isReceivingAudio = true;
-	                receivingAudioWatchdogTimer.cancel();
-	                receivingAudioWatchdogTimer.purge();
-	                receivingAudioWatchdogTimer = new Timer();
-	                TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
-	                receivingAudioWatchdogTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+
+                    /*
+                    if (receivingAudioTimer != null) {
+                        receivingAudioTimer.cancel();
+                        receivingAudioTimer.purge();
+                        receivingAudioTimer = new Timer();
+                        TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
+                        receivingAudioTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+                    }
+                    */
 
                     //Log.v(TAG, "isAudioFormatValid: " + isAudioFormatValid);
 	                if (isAudioFormatValid) {
-	                	pbMan.handleAudioDataPayload(pcmAudioDataPayload);
-	                	int newPlaybackSpeed = pbMan.changePlaybackSpeedIfNeeded();
-	                	if (newPlaybackSpeed != PlaybackManager.PLAYBACK_SPEED_UNCHANGED) {
-	                		notifyListenersOnPlaybackSpeedStatusChanged(newPlaybackSpeed);
-	                	}
+                        if (pbMan != null) { pbMan.handleAudioDataPayload(pcmAudioDataPayload); }  // Adding pbMan null checks because pbMan could get destroyed while another thread is in these functions...
+                        if (pbMan != null) {
+                            int newPlaybackSpeed = pbMan.changePlaybackSpeedIfNeeded();
+                            if (newPlaybackSpeed != PlaybackManager.PLAYBACK_SPEED_UNCHANGED) {
+                                notifyListenersOnPlaybackSpeedStatusChanged(newPlaybackSpeed);
+                            }
+                        }
 	                }
 				} else {
 					Log.w(TAG, "Hmm, received a packet/payload, but is an unexpected type...");
@@ -211,7 +244,8 @@ public class NetworkPlaybackService extends IntentService {
 			}
 		}
 		
-		cleanUp();
+		//cleanUp();
+        // After this destroy() gets called, right? If so, just let destroy() call cleanUp().
 	}
 	
 	@Override
@@ -250,18 +284,22 @@ public class NetworkPlaybackService extends IntentService {
     private void cleanUp() {
         Log.v(TAG, "NpService::cleanUp");
 
-        if (receivingAudioWatchdogTimer != null) {
-            receivingAudioWatchdogTimer.cancel();
-            receivingAudioWatchdogTimer.purge();
-            receivingAudioWatchdogTimer = null;
+        isListening = false;
+
+        if (receivingAudioTimer != null) {
+            receivingAudioTimer.cancel();
+            receivingAudioTimer.purge();
+            receivingAudioTimer = null;
         }
 
         if (pbMan != null) {
         	pbMan.cleanUp();
+            pbMan = null;
         }
         
         if (netMan != null) {
         	netMan.cleanUp();
+            netMan = null;
         }
         
         // Notify listeners
@@ -287,6 +325,13 @@ public class NetworkPlaybackService extends IntentService {
     		listener.onNpServiceFinished();
     	}
 	}
+
+    private void notifyListenersOnMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPackets) {
+        //Log.v(TAG, "notifyListenersOnMissingPacketRequestCreated");
+        for (NetworkPlaybackServiceListener listener : listeners) {
+            listener.onMissingPacketRequestCreated(missingPackets);
+        }
+    }
 
     public void onAudioFormatChanged(AudioFormatStruct af) {
         Log.v(TAG, "onAudioFormatChanged() to: " + af.SampleRate + ". Creating new speaker line");
@@ -326,7 +371,16 @@ public class NetworkPlaybackService extends IntentService {
 		
 		return PlaybackManager.PLAYBACK_SPEED_NORMAL;
 	}
-	
+
+    public void setSendMissingPacketRequestsEnabled(boolean enabled) {
+        pbMan.setSendMissingPacketRequestsEnabled(enabled);
+    }
+
+    @Override
+    public void onMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPackets) {
+        notifyListenersOnMissingPacketRequestCreated(missingPackets);
+    }
+
 	@Override
 	public void onDestroy() {
 		Log.v(TAG, "onDestroy()");

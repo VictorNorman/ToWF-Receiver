@@ -5,13 +5,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.util.Arrays;
 
-import android.media.AudioFormat;
-import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.os.AsyncTask;
 import android.util.Log;
 
 import static com.briggs_inc.towf_receiver.PacketConstants.*;
@@ -20,7 +15,9 @@ public class NetworkManager {
 	private static final String TAG = "NetworkManager";
 
 	DatagramSocket socket;
+    DatagramPacket dg;
 	byte dgData[];
+    //byte dgDataPayload[];
 	int receiveTimeoutMs;
 	
 	class SendDatagramThread extends Thread {
@@ -52,7 +49,8 @@ public class NetworkManager {
 	}
 	
 	public DatagramPacket receiveDatagram() throws SocketException, SocketTimeoutException, IOException {
-		DatagramPacket dg = new DatagramPacket(dgData, dgData.length);
+		//DatagramPacket dg = new DatagramPacket(DgData, DgData.length);
+        dg = new DatagramPacket(dgData, dgData.length);
 		if (socket != null) {
             socket.setSoTimeout(receiveTimeoutMs);
             socket.receive(dg);  // Hangs (blocks) here until packet is received (or times out)... (but doesn't use CPU resources while blocking)
@@ -66,6 +64,12 @@ public class NetworkManager {
 		new SendDatagramThread(dg).start();
 	}
 
+    /*
+    public void sendDatagramSync(DatagramPacket dg) throws IOException {
+        socket.send(dg);
+    }
+    */
+
 	public Payload getPayload() {
 		// First, check for "ToWF" in Header
         int headerId = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_ID_START, DG_DATA_HEADER_ID_LENGTH, true); 
@@ -74,21 +78,36 @@ public class NetworkManager {
         }
 		
 		int payloadType = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_PAYLOAD_TYPE_START, DG_DATA_HEADER_PAYLOAD_TYPE_LENGTH, false);
-		byte dgDataPayload[] = Arrays.copyOfRange(dgData, DG_DATA_HEADER_LENGTH, dgData.length);
-		
+		//byte dgDataPayload[] = Arrays.copyOfRange(DgData, DG_DATA_HEADER_LENGTH, DgData.length);
+        //dgDataPayload = Arrays.copyOfRange(DgData, DG_DATA_HEADER_LENGTH, DgData.length);
+
 		switch (payloadType) {
 	    	case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_FORMAT:
 	            //Log.d(TAG, "*** Audio Format Datagram ***");
-	            PcmAudioFormatPayload pcmAudioFormatPayload = new PcmAudioFormatPayload(dgDataPayload);
+	            //PcmAudioFormatPayload pcmAudioFormatPayload = new PcmAudioFormatPayload(dgDataPayload);
+                PcmAudioFormatPayload pcmAudioFormatPayload = new PcmAudioFormatPayload(dgData);
 	            return pcmAudioFormatPayload;
-	    	case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA:
-	    		PcmAudioDataPayload pcmAudioDataPayload = new PcmAudioDataPayload(dgDataPayload);
-	    		return pcmAudioDataPayload;
+	    	case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_REGULAR:
+                //Log.v(TAG, "REGULAR Payload");
+	    		//PcmAudioDataRegularPayload pcmAudioDataRegularPayload = new PcmAudioDataRegularPayload(dgDataPayload);
+                PcmAudioDataRegularPayload pcmAudioDataRegularPayload = new PcmAudioDataRegularPayload(dgData);
+	    		return pcmAudioDataRegularPayload;
 	    	case DG_DATA_HEADER_PAYLOAD_TYPE_LANG_PORT_PAIRS:
-	    		LangPortPairsPayload langPortPairsPayload = new LangPortPairsPayload(dgDataPayload);
+	    		//LangPortPairsPayload langPortPairsPayload = new LangPortPairsPayload(dgDataPayload);
+                LangPortPairsPayload langPortPairsPayload = new LangPortPairsPayload(dgData);
 	    		return langPortPairsPayload;
+            case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_MISSING:
+                //Log.v(TAG, "MISSING Payload");
+                //PcmAudioDataMissingPayload pcmAudioDataMissingPayload = new PcmAudioDataMissingPayload(dgDataPayload);
+                PcmAudioDataMissingPayload pcmAudioDataMissingPayload = new PcmAudioDataMissingPayload(dgData);
+                return pcmAudioDataMissingPayload;
+            case DG_DATA_HEADER_PAYLOAD_TYPE_ENABLE_MPRS:
+                //EnableMprsPayload enableMprsPayload = new EnableMprsPayload(dgDataPayload);
+                EnableMprsPayload enableMprsPayload = new EnableMprsPayload(dgData);
+                return enableMprsPayload;
             case DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG:
-                ChatMsgPayload cmPayload = new ChatMsgPayload(dgDataPayload);
+                //ChatMsgPayload cmPayload = new ChatMsgPayload(dgDataPayload);
+                ChatMsgPayload cmPayload = new ChatMsgPayload(dgData);
                 return cmPayload;
 	    	default:
 	    		return null;

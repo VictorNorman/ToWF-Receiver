@@ -86,8 +86,10 @@ public class Util {
 		
 		return (i & 0xFF) + "." + ((i >> 8 ) & 0xFF) + "." + ((i >> 16 ) & 0xFF) + "." + ( (i >> 24) & 0xFF);
 	}
-	
+
+    /*
 	public static float convertAudioSamplesToSeconds(long numAudioSamples, AudioFormatStruct af) {
-		return (float)numAudioSamples / (float)af.SampleRate;
+		return (float)numAudioSamples / af.SampleRate;
 	}
+	*/
 }

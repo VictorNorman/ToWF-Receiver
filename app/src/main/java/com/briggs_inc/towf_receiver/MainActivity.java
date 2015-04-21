@@ -31,11 +31,14 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 import static com.briggs_inc.towf_receiver.MiscConstants.*;
 
@@ -45,7 +48,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     private static final String TAG = "MainActivity";
 
     // Setup GUI SharedPreferences Key's
-    private static final String DESIRED_DELAY_KEY = "DesiredDelay";
+    //private static final String DESIRED_DELAY_KEY = "DesiredDelay";
     
     // GUI-related
 	TextView wifiConnection;
@@ -58,6 +61,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     TextView desiredDelayLabel;
     TextView lblReceivingAudio;
     TextView lblPlaybackSpeed;
+    ToggleButton sendMissingPacketRequestsTB;
     EditText chatMsgTF;
     Button sendChatMsgBtn;
     TextView debugResults;
@@ -150,6 +154,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         desiredDelayLabel = (TextView) findViewById(R.id.desiredDelayLabel);
         lblReceivingAudio = (TextView) findViewById(R.id.lblReceivingAudio);
         lblPlaybackSpeed = (TextView) findViewById(R.id.lblPlaybackSpeed);
+        sendMissingPacketRequestsTB = (ToggleButton) findViewById(R.id.sendMissingPacketRequestsTB);
         chatMsgTF = (EditText) findViewById(R.id.chatMsgTF);
         sendChatMsgBtn = (Button) findViewById(R.id.sendChatMsgBtn);
         debugResults = (TextView) findViewById(R.id.debugResults);
@@ -164,6 +169,12 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         npServiceIntent = new Intent(this, NetworkPlaybackService.class);
         infoServiceIntent = new Intent(this, InfoService.class);
 
+        sendMissingPacketRequestsTB.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                npService.setSendMissingPacketRequestsEnabled(isChecked);
+            }
+        });
         chatMsgTF.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
@@ -196,7 +207,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 				}
 			}
 		});
-        
+
         // INFO Service (Start)
         // Start it only if it's not already existing
         if (!isServiceRunning(InfoService.class)) {
@@ -325,7 +336,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 
 	@Override
     protected void onPause() {
-    	Log.v(TAG, "onPause()");
+    	Log.v(TAG, "onPause() ");
     	super.onPause();
     }
     
@@ -412,6 +423,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     	npServiceIntent.putExtra(STREAM_PORT_KEY, streamPort);
     	npServiceIntent.putExtra(DESIRED_DELAY_KEY, Float.valueOf(desiredDelayLabel.getText().toString()));
         //npServiceIntent.putExtra(AUDIO_FORMAT_KEY, currAudioFormat);
+        npServiceIntent.putExtra(SEND_MPRS_ENABLED_KEY, sendMissingPacketRequestsTB.isChecked());
     	startService(npServiceIntent);
     	
     	// Bind to the NetworkPlayback Service
@@ -555,9 +567,9 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
             npService.onAudioFormatChanged(af);
         }
 	}
-	
-	
-	private Boolean isServiceRunning(Class<?> serviceClass) {
+
+
+    private Boolean isServiceRunning(Class<?> serviceClass) {
 	    ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
 	    for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
 	        if (serviceClass.getName().equals(service.service.getClassName())) {
@@ -600,4 +612,31 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
             }
         });
     }
+
+    @Override
+    public void onMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPackets) {
+        //Log.v(TAG, "onMissingPacketRequestCreated");
+        if (isBoundToInfoService) {
+            infoService.sendMissingPacketRequest(streamPort, missingPackets);
+        }
+    }
+
+    /*
+    public void onSendMissingPacketRequestsSwitchClicked(View v) {
+        Log.v(TAG, "onSendMissingPacketRequestsSwitchClicked");
+
+        ((Switch)v).get
+        if (npService != null && isBoundToNpService) {
+            npService.setSendMissingPacketRequestsEnabled();
+        }
+    }
+
+
+    @Override
+    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        // Only 1 Switch in app, so it must be that one...
+        Log.v(TAG, "onCheckedChanged");
+        npService.setSendMissingPacketRequestsEnabled(isChecked);
+    }
+    */
 }
