@@ -459,11 +459,11 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 		// Note: this comes from a thread (other than the UI thread) - and we can't update UI elements from some other thread. So we need to runOnUiThread()
 		
 		runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				updateLblPlaybackSpeed(playbackSpeed);
-			}
-		});
+            @Override
+            public void run() {
+                updateLblPlaybackSpeed(playbackSpeed);
+            }
+        });
 	}
 	
 	@Override
@@ -471,11 +471,11 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 		// Note: this comes from a thread (other than the UI thread) - and we can't update UI elements from some other thread. So we need to runOnUiThread()
 		
 		runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				outputToDebugResults("NetworkPlaybackService is FINISHED");
-			}
-		});
+            @Override
+            public void run() {
+                outputToDebugResults("NetworkPlaybackService is FINISHED");
+            }
+        });
 	}
 	
 	
@@ -639,4 +639,25 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         npService.setSendMissingPacketRequestsEnabled(isChecked);
     }
     */
+
+    @Override
+    public void onDisableMPRSwitch() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                sendMissingPacketRequestsTB.setChecked(false);
+                sendMissingPacketRequestsTB.setEnabled(false);
+            }
+        });
+    }
+
+    @Override
+    public void onEnableMPRSwitch() {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                sendMissingPacketRequestsTB.setEnabled(true);
+            }
+        });
+    }
 }

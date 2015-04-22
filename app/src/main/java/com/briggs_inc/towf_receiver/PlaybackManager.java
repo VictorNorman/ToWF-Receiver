@@ -509,6 +509,7 @@ public class PlaybackManager {
 	}
 	
 	public void createNewSpeakerLine(AudioFormatStruct af) {
+        //Log.v(TAG, "createNewSpeakerLine ");
 		cleanUp();
 		audioFormat = new AudioFormatStruct(af.SampleRate, af.SampleSizeInBits, af.Channels, af.IsSigned, af.IsBigEndian);
 
@@ -527,7 +528,9 @@ public class PlaybackManager {
 		int desiredSpeakerLineBufferSizeInBytes = (int) (DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS * audioFormat.SampleRate * audioFormat.SampleSizeInBytes * audioFormat.Channels);
         int encoding = audioFormat.SampleSizeInBytes == 2 ? AudioFormat.ENCODING_PCM_16BIT : AudioFormat.ENCODING_PCM_8BIT;
         line = new AudioTrack(AudioManager.STREAM_MUSIC, (int)audioFormat.SampleRate, AudioFormat.CHANNEL_OUT_STEREO, encoding, desiredSpeakerLineBufferSizeInBytes, AudioTrack.MODE_STREAM);
+        //Log.v(TAG, "before line.play");
         line.play();  // ??? Here, right???
+        //Log.v(TAG, "after line.play");
 	}
 
 	public int getPlaybackSpeed() {

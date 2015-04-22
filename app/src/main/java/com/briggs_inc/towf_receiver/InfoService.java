@@ -36,6 +36,8 @@ interface InfoServiceListener {
     public void onChatMsgReceived(String msg);
 	public void onServerStoppedStreaming();
 	public void onServerStartedStreaming();
+    public void onDisableMPRSwitch();
+    public void onEnableMPRSwitch();
 }
 
 public class InfoService extends IntentService {
@@ -219,6 +221,14 @@ public class InfoService extends IntentService {
                         isServerStreaming = true;
                         notifyListenersOnLppListChanged(lppList);
                         notifyListenersOnServerStartedStreaming();
+                    }
+                } else if (payload instanceof EnableMprsPayload) {
+                    //EnableMprsPayload enMprsPayload = (EnableMprsPayload) payload;
+                    boolean enabled = ((EnableMprsPayload) payload).Enabled;
+                    if (!enabled) {
+                        notifyListenersOnDisableMPRSwitch();
+                    } else {
+                        notifyListenersOnEnableMPRSwitch();
                     }
                 } else if (payload instanceof ChatMsgPayload) {
                     ChatMsgPayload cmPayload = (ChatMsgPayload) payload;
@@ -418,6 +428,18 @@ public class InfoService extends IntentService {
     		listener.onServerStoppedStreaming();
     	}
 	}
+
+    private void notifyListenersOnDisableMPRSwitch() {
+        for (InfoServiceListener listener : listeners) {
+            listener.onDisableMPRSwitch();
+        }
+    }
+
+    private void notifyListenersOnEnableMPRSwitch() {
+        for (InfoServiceListener listener : listeners) {
+            listener.onEnableMPRSwitch();
+        }
+    }
 
 	public Boolean getIsServerStreaming() {
 		return isServerStreaming;
