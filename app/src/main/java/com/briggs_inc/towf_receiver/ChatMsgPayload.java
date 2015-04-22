@@ -26,7 +26,6 @@ public class ChatMsgPayload extends Payload {
     }
 
     // Constructor - for receiving a Chat Msg Packet
-    //public ChatMsgPayload(byte[] dgDataPayload) {
     public ChatMsgPayload(byte[] dgData) {
         this.Msg = Util.getNullTermStringFromByteArray(dgData, DG_DATA_HEADER_LENGTH + CHATMSG_MSG_START, dgData.length - DG_DATA_HEADER_LENGTH);
     }

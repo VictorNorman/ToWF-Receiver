@@ -46,22 +46,16 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	
     DatagramSocket sock;
     
-    byte dgData[];
-    
     boolean isListening;
 	private boolean isAudioFormatValid = true;  //???delete???
 
-	private short audioDataShort[]; // For a line setup as: AudioFormat.ENCODING_PCM_16BIT
-
-	//AudioTrack line;
     long currNumReceivedAudioDataPackets;
 	long lastNumReceivedAudioDataPackets;
 
     long totalNumSamplesWritten;
 
 	private boolean isReceivingAudio;
-	private int channelMultiplier;
-	
+
 	int streamPort = 0;
 
     DatagramPacket datagram;
@@ -71,22 +65,12 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	
 	NpServiceBinder npServiceBinder = new NpServiceBinder();
 
-    //Timer serverStreamingCheckTimer = new Timer();
 	Timer receivingAudioCheckTimer = new Timer();
 	
 	WifiLock wifiLock;
     WakeLock wakeLock;
 
 
-    /*
-    public class OnCurrentlyNotReceivingAudioTask extends TimerTask {
-		@Override
-		public void run() {
-			Log.v(TAG, "Not receiving audio...");
-			NetworkPlaybackService.this.onCurrentlyNotReceivingAudio();
-		}
-	}
-	*/
     public class CheckIfReceivingAudioTask extends TimerTask {
         @Override
         public void run() {
@@ -123,7 +107,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 			pbMan.addListener(this);
             pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
             //pbMan.createNewSpeakerLine();
-            pbMan.setSendMissingPacketRequestsEnabled(intent.getExtras().getBoolean(SEND_MPRS_ENABLED_KEY, false));
+            pbMan.setSendMissingPacketRequestsChecked(intent.getExtras().getBoolean(SEND_MPRS_ENABLED_KEY, false));
 		} else {
 			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from it's intent. Unable to start service.");
 			return;
@@ -162,12 +146,8 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         //Log.v(TAG, "Creating New DatagramSocket (for Broadcast)...");
      	
         isListening = true;
-        //isAudioFormatValid = false;
 
-        // Start the ServerStreaming & ReceivingAudio timers
-        //receivingAudioCheckTimer = new Timer();
-        //TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
-        //receivingAudioCheckTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+        // Start the ReceivingAudio timer
         receivingAudioCheckTimer.schedule(new CheckIfReceivingAudioTask(), 200, 200);  //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
         
         Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -222,16 +202,6 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	                }
 	                isReceivingAudio = true;
 
-                    /*
-                    if (receivingAudioCheckTimer != null) {
-                        receivingAudioCheckTimer.cancel();
-                        receivingAudioCheckTimer.purge();
-                        receivingAudioCheckTimer = new Timer();
-                        TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
-                        receivingAudioCheckTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
-                    }
-                    */
-
                     //Log.v(TAG, "isAudioFormatValid: " + isAudioFormatValid);
 	                if (isAudioFormatValid) {
                         if (pbMan != null) { pbMan.handleAudioDataPayload(pcmAudioDataPayload); }  // Adding pbMan null checks because pbMan could get destroyed while another thread is in these functions...
@@ -260,7 +230,9 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
     void setIsListening(boolean b) {
         isListening = b;
     }
-    
+
+    /*
+    // KEEP for DEBUG
     public void logExtraInfo() {
     	// Extra info
         ConnectivityManager connManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -284,6 +256,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         Log.v(TAG, "sock.isClosed(): " + sock.isClosed());
         Log.v(TAG, "sock.isConnected(): " + sock.isConnected());
     }
+    */
     
     private void cleanUp() {
         Log.v(TAG, "NpService::cleanUp");
@@ -339,7 +312,6 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 
     public void onAudioFormatChanged(AudioFormatStruct af) {
         Log.v(TAG, "onAudioFormatChanged() to: " + af.SampleRate + ". Creating new speaker line");
-        //currAudioFormat = af;
         pbMan.createNewSpeakerLine(af);
         isAudioFormatValid = true;  //??? Maybe later, check to make sure the format actually IS valid data.  //??? Do we need this anymore???
     }
@@ -376,8 +348,8 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 		return PlaybackManager.PLAYBACK_SPEED_NORMAL;
 	}
 
-    public void setSendMissingPacketRequestsEnabled(boolean enabled) {
-        pbMan.setSendMissingPacketRequestsEnabled(enabled);
+    public void setSendMissingPacketRequestsChecked(boolean enabled) {
+        pbMan.setSendMissingPacketRequestsChecked(enabled);
     }
 
     @Override

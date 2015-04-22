@@ -1,7 +1,6 @@
 package com.briggs_inc.towf_receiver;
 
 
-import java.net.DatagramSocket;
 import java.util.ArrayList;
 import java.util.List;
 import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
@@ -36,7 +35,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -47,9 +45,6 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 
     private static final String TAG = "MainActivity";
 
-    // Setup GUI SharedPreferences Key's
-    //private static final String DESIRED_DELAY_KEY = "DesiredDelay";
-    
     // GUI-related
 	TextView wifiConnection;
 	TextView waitingForServerLabel;
@@ -67,12 +62,12 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     TextView debugResults;
     
     
-    DatagramSocket infoSocket;
-    
-    ArrayList<LangPortPair> lppArrayList;
+    //DatagramSocket infoSocket;
+    //ArrayList<LangPortPair> lppArrayList;
+
     ArrayAdapter<LangPortPair> languageSpinnerArrayAdapter;
     
-    List<LangPortPair> lppList = new ArrayList<LangPortPair>();
+    List<LangPortPair> lppList = new ArrayList<>();
     
     Intent npServiceIntent;
     Intent infoServiceIntent;
@@ -172,7 +167,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         sendMissingPacketRequestsTB.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                npService.setSendMissingPacketRequestsEnabled(isChecked);
+                npService.setSendMissingPacketRequestsChecked(isChecked);
             }
         });
         chatMsgTF.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -620,25 +615,6 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
             infoService.sendMissingPacketRequest(streamPort, missingPackets);
         }
     }
-
-    /*
-    public void onSendMissingPacketRequestsSwitchClicked(View v) {
-        Log.v(TAG, "onSendMissingPacketRequestsSwitchClicked");
-
-        ((Switch)v).get
-        if (npService != null && isBoundToNpService) {
-            npService.setSendMissingPacketRequestsEnabled();
-        }
-    }
-
-
-    @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        // Only 1 Switch in app, so it must be that one...
-        Log.v(TAG, "onCheckedChanged");
-        npService.setSendMissingPacketRequestsEnabled(isChecked);
-    }
-    */
 
     @Override
     public void onDisableMPRSwitch() {

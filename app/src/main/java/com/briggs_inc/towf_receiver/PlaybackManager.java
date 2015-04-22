@@ -7,7 +7,6 @@ import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TimerTask;
 
 import static com.briggs_inc.towf_receiver.PacketConstants.*;
 
@@ -32,11 +31,9 @@ public class PlaybackManager {
 	AudioTrack line;
 	
 	private short audioDataShort[]; // For a line setup as: AudioFormat.ENCODING_PCM_16BIT
-	//private SeqId lastPayloadSeqId;
     private SeqId lastQueuedSeqId;
 	private int channelMultiplier;
 	private long totalNumSamplesWrittenToBuffer;
-	//private double desiredDelay;
     private float desiredDelay;
 	private Boolean playFaster = false;
 	private Boolean playSlower = false;
@@ -48,90 +45,29 @@ public class PlaybackManager {
     int packetRateMS;
 
     // Packet Recovery Related
-    private boolean sendMissingPacketRequestsEnabled;
+    private boolean sendMissingPacketRequestsChecked;
     boolean firstPacketReceived;
     PayloadStorageList payloadStorageList;
     boolean isWaitingOnMissingPackets;
     boolean isPrimaryBurstMode;
     boolean isSecondaryBurstMode;
     SeqId highestMissingSeqId;
-    //Timer burstModeWatchdogTimer;
-    //int burstModeWatchdogTimerTimeoutMS;
     long burstModeTimeoutNS;
-    //int delayAfterBurstModeFinishedCtr;
-    //boolean isBurstModeJustFinished;
-	
+
 	private int playbackSpeed = PLAYBACK_SPEED_NORMAL;
     private long lastPacketReceivedTimeNS;
-    private long currPacketReceivedTimeNS;
-
-
-    public class OnBurstModeFinishedTask extends TimerTask {
-
-        @Override
-        public void run() {
-            //isBurstModeJustFinished = true;
-            /*
-            Log.v(TAG, "--- Burst Mode Finished ---");
-            delayAfterBurstModeFinishedCtr = 5;
-            isPrimaryBurstMode = false;
-
-            // Send Missing Packets (if any), though we must limit our request so that total paylostStorageList size (in secs) doesn't exceed "desiredDelay".
-            //      If payloadStorageList is too big, we must cut it down to size here, then request whatever missingPayloads are left.
-            if (payloadStorageList.getNumMissingPayloads() > 0) {
-                float payloadStorageListSizeSecs = getNumAudioSecondsFromNumAudioBytes(payloadStorageList.getTotalNumPayloads() * audioDataMaxValidSize);
-
-                Log.v(TAG, "======================= ");
-                Log.v(TAG, String.format("payloadStorageList.totalNumPayloads: %d", payloadStorageList.getTotalNumPayloads()));
-                Log.v(TAG, String.format("payloadStorageListSizeSecs: %f", payloadStorageListSizeSecs));
-
-                if (payloadStorageListSizeSecs > desiredDelay) {
-                    float numSecsToCut = payloadStorageListSizeSecs - desiredDelay;
-                    Log.v(TAG, String.format("numSecsToCut: %f", numSecsToCut));
-                    int numBytesToCut = (int)getNumAudioBytesFromNumAudioSeconds(numSecsToCut);
-                    Log.v(TAG, String.format("numBytesToCut: %d", numBytesToCut));
-                    int numPayloadsToCut = numBytesToCut / audioDataMaxValidSize;
-                    Log.v(TAG, String.format("numPayloadsToCut: %d", numPayloadsToCut));
-                    if (numPayloadsToCut > 0) {
-                        Log.v(TAG, String.format("payloadStorageList.totalNumPayloads(Before): %d", payloadStorageList.getTotalNumPayloads()));
-                        Log.v(TAG, String.format("payloadStorageList.numMissingPayloads(Before): %d", payloadStorageList.getNumMissingPayloads()));
-
-                        payloadStorageList.removeMissingPayloadsInFirstXPayloads(numPayloadsToCut);  // Leave any full payloads 'cuz we already got them and we'll instantly queue them up anyhow with our coming up call to checkForReadyToQueuePacketsInStorageList.
-
-                        Log.v(TAG, String.format("payloadStorageList.totalNumPayloads(After): %d", payloadStorageList.getTotalNumPayloads()));
-                        Log.v(TAG, String.format("payloadStorageList.numMissingPayloads(After): %d", payloadStorageList.getNumMissingPayloads()));
-                        Log.v(TAG, String.format("payloadStorageList2: %s", payloadStorageList.getAllPayloadsSeqIdsAsHexString()));
-
-                        checkForReadyToQueuePacketsInStorageList();
-
-                        Log.v(TAG, String.format("payloadStorageList.totalNumPayloads(After check for Ready-to-Queue): %d", payloadStorageList.getTotalNumPayloads()));
-                        Log.v(TAG, String.format("payloadStorageList3: %s", payloadStorageList.getAllPayloadsSeqIdsAsHexString()));
-                    }
-                }
-
-
-                notifyListenersOnMissingPacketRequestCreated(payloadStorageList.getMissingPayloads());
-            }
-            //delayAfterBurstModeFinishedCtr = 5;
-            */
-        }
-    }
 
     public PlaybackManager() {
         lastQueuedSeqId = new SeqId(0x0000);
         // Packet Recovery Related
-        sendMissingPacketRequestsEnabled = false;
+        sendMissingPacketRequestsChecked = false;
         firstPacketReceived = false;  // To specify that we just started (so we don't think that we just skipped 100 or 1000 packets)
         payloadStorageList = new PayloadStorageList();
         isWaitingOnMissingPackets = false;
         isPrimaryBurstMode = false;
         highestMissingSeqId = new SeqId(0x0000);
-        //burstModeWatchdogTimerTimeoutMS = 1;
-        //delayAfterBurstModeFinishedCtr = 5;
-        //isBurstModeJustFinished = false;
 
         desiredDelay = 1.1f;  // Note: this should be set from constructor parameter if possible. (along with: audioFormat, )
-
 	}
 	
 	public void cleanUp() {
@@ -145,69 +81,7 @@ public class PlaybackManager {
 	}
 	
 	public void handleAudioDataPayload(PcmAudioDataPayload pcmAudioDataPayload) {
-		/*
-		if (line != null) {
-	        SeqId payloadSeqId = pl.SeqId;
-	        
-	        int numSkippedPackets = 0;
-	    	
-	        // Watch for irregular changes in: payloadSeqId
-	        if (payloadSeqId > lastPayloadSeqId + 1) {
-	        	numSkippedPackets = payloadSeqId - lastPayloadSeqId - 1;
-	        	Log.w(TAG, numSkippedPackets + " packet(s) SKIPPED! (" + String.format("0x%04x", lastPayloadSeqId) + ", " + String.format("0x%04x", payloadSeqId) + ")");
-	        } else if (payloadSeqId < lastPayloadSeqId) {
-	        	if (!(payloadSeqId == 0 && lastPayloadSeqId == 65535)) {
-	        		Log.w(TAG, "Packet OUT OF ORDER (LastId: " + String.format("0x%04x", lastPayloadSeqId) + ", CurrId: " + String.format("0x%04x", payloadSeqId) + ")");
-	        	}
-	        } else if (payloadSeqId == lastPayloadSeqId) {
-	        	Log.w(TAG, "Packet received with SAME SeqId as last packet! Shouldn't happen! (Id:" + String.format("0x%04x", payloadSeqId) + ")");
-	        }
-	        
-	        lastPayloadSeqId = payloadSeqId;
-	
-	        // Audio Data Length
-	        int audioDataAllocatedBytes = pl.AudioDataAllocatedBytes;
-	        //Log.v(TAG, " audioDataLength: " + audioDataLength);
-	        if (audioDataAllocatedBytes < 0) {
-	            audioDataAllocatedBytes = 0;
-	        }
-	        
-	        // Re-create and fill the audioDataShort buffer (Assuming SampleSizeInBytes == 2)
-	        
-	    	// Create an array of "shorts" (instead of bytes) & make the mono data into stereo audio data
-	        channelMultiplier = audioFormat.Channels == 1 ? 2 : 1;  // If mono data, *2 for stereo
-			audioDataShort = new short[audioDataAllocatedBytes/audioFormat.SampleSizeInBytes*channelMultiplier];
-			
-			// Convert byte[] to short[]. And while we're at it, add same data to other (stereo) channel 
-			for (int i = 0; i < audioDataAllocatedBytes; i+=channelMultiplier) {
-				audioDataShort[i] = (short)((pl.AudioData[i+1] << 8) + (pl.AudioData[i] & 0xFF));
-				for (int j = 1; j < channelMultiplier; j++) {
-					audioDataShort[i+j] = audioDataShort[i];
-				}
-			}
-			
-			//Log.v(TAG, " audioDataShort: " + audioDataShort[0] + "," + audioDataShort[1] + "," + audioDataShort[2] + "," + audioDataShort[3]);
-			
-			// Write audio data to Speaker (line) (Assuming sampleSizeInBytes == 2)
-			int shortsWritten;
-			shortsWritten = line.write(audioDataShort, 0, audioDataShort.length);
-			totalNumSamplesWrittenToBuffer += shortsWritten / channelMultiplier;
-			
-			// If X packets were skipped, fill in that space with a copy(s) of this packet
-            //   will keep the buffer fuller, so we don't have to SLOW DOWN so much.
-            //   the audio will still "skip" but it did that before, so nothing really lost in audio quality
-            if (numSkippedPackets <= 5) {
-                for (int i = 0; i < numSkippedPackets; i++) {
-                	shortsWritten = line.write(audioDataShort, 0, audioDataShort.length);
-        			totalNumSamplesWrittenToBuffer += shortsWritten / channelMultiplier;
-                }
-            }
-		}
-		*/
-
-
-
-        currPacketReceivedTimeNS = System.nanoTime();
+        long currPacketReceivedTimeNS = System.nanoTime();
 
         // Check if primary or secondary burst modes is FINISHED
         if (isPrimaryBurstMode || isSecondaryBurstMode) {
@@ -229,31 +103,6 @@ public class PlaybackManager {
 
         lastPacketReceivedTimeNS = currPacketReceivedTimeNS;
 
-
-        /*
-        if (isBurstModeJustFinished) {
-            isBurstModeJustFinished = false;
-            onPrimaryBurstModeFinished();
-        }
-        */
-
-        /*
-        delayAfterBurstModeFinishedCtr--;
-        if (delayAfterBurstModeFinishedCtr < 0) { delayAfterBurstModeFinishedCtr = 0; }
-        */
-
-        /*
-        // Reset burstMode Watchdog Timer (if burstMode is true)
-        if (isPrimaryBurstMode) {
-            if (burstModeWatchdogTimer != null) {
-                burstModeWatchdogTimer.cancel();
-                burstModeWatchdogTimer.purge();
-            }
-            burstModeWatchdogTimer = new Timer();
-            burstModeWatchdogTimer.schedule(new OnBurstModeFinishedTask(), burstModeWatchdogTimerTimeoutMS);
-        }
-        */
-
         if (line != null) {
             SeqId currSeqId = pcmAudioDataPayload.SeqId;
 
@@ -261,7 +110,7 @@ public class PlaybackManager {
             //Log.v(TAG, String.format("Received Audio Packet: (0x%04x) {%s}", currSeqId.intValue, pcmAudioDataPayload instanceof PcmAudioDataMissingPayload ? "Missing" : "Regular"));
 
             // === Fill the Play Queue, based on sendMissingPacketsRequestsSwitch ===
-            if (sendMissingPacketRequestsEnabled) {
+            if (sendMissingPacketRequestsChecked) {
                 if (!firstPacketReceived) {
                     Log.d(TAG, String.format("First Packet (0x%04x) JUST received (not counting any SKIPPED packets)", currSeqId.intValue));
                     firstPacketReceived = true;
@@ -297,26 +146,10 @@ public class PlaybackManager {
                     int numSkippedPackets = currSeqId.numSeqIdsExclusivelyBetweenMeAndSeqId(lastQueuedSeqId);
                     //Log.v(TAG, String.format("%d packet(s) between NOW (0x%04x) and LAST_QUEUED (0x%04x). Updating payloadStorageList as appropriate", numSkippedPackets, currSeqId.intValue, lastQueuedSeqId.intValue));
 
-                    /*
-                    if (!isPrimaryBurstMode) {
-                        Log.v(TAG, String.format("---Burst Mode Started---"));
-                    }
-                    isPrimaryBurstMode = true;  // In case we just got a whole "burst" of packets (i.e. received faster than the packet rate for the given sample rate)
-                    */
-
-                    /*
-                    if (delayAfterBurstModeFinishedCtr == 0) {
-                        if (!isPrimaryBurstMode) {
-                            //Log.v(TAG, String.format("---Burst Mode Started---"));
-                        }
-                        isPrimaryBurstMode = true;  // In case we just got a whole "burst" of packets (i.e. received faster than the packet rate for the given sample rate)
-                    }
-                    */
                     if (!isPrimaryBurstMode && !isSecondaryBurstMode) {
                         //Log.v(TAG, "---Primary Burst Mode Started---");
                         isPrimaryBurstMode = true;  // In case we just got a whole "burst" of packets (i.e. received faster than the packet rate for the given sample rate)
                     }
-
 
                     // === Add the "Missing Packets" if they're not already in the list ===
                     boolean addMissingPackets = false;
@@ -336,13 +169,6 @@ public class PlaybackManager {
                     }
 
                     if (addMissingPackets) {
-                        /*
-                        if (!isPrimaryBurstMode) {
-                            Log.v(TAG, String.format("---Burst Mode Started---"));
-                        }
-                        isPrimaryBurstMode = true;  // In case we just got a whole "burst" of packets (i.e. received faster than the packet rate for the given sample rate)
-                        */
-
                         //Log.v(TAG, "ADDING Missing Packets Range to payloadStorageList ");
                         List<PcmAudioDataPayload> incrMissingPayloadsArr = new ArrayList<>();
                         for (int i = 0; i < numSkippedPackets; i++) {
@@ -361,14 +187,13 @@ public class PlaybackManager {
                     isWaitingOnMissingPackets = true;
                 }
             } else {
-                // sendMissingPacketRequestsEnabled == false
+                // sendMissingPacketRequestsChecked == false
                 //  so just send packets to play queue as they arrive. Only exception is if only 1-3 packets are skipped, queue the received packet and repeat 1-3 times 'cuz it's "pretty likely" they were truly lost & not just out of order.
 
                 // Check if this is a <Regular> or <Missing> packet. We only want to care about <Regular> packets.
                 if (pcmAudioDataPayload instanceof PcmAudioDataRegularPayload) {
                     // Queue the payload
                     queueThisPayload(pcmAudioDataPayload);
-                    //lastQueuedSeqId = currSeqId;
 
                     // If X packets were skipped, fill in that space with a copy(s) of this packet
                     //   will keep the buffer fuller, so we don't have to SLOW DOWN so much.
@@ -398,14 +223,8 @@ public class PlaybackManager {
         }
         //Log.v(TAG, " audioDataAllocatedBytes: " + audioDataAllocatedBytes);
 
-        // Create an array of "shorts" (instead of bytes) & make the mono data into stereo audio data
-        //channelMultiplier = audioFormat.Channels == 1 ? 2 : 1;  // If mono data, *2 for STEREO
-        //audioDataShort = new short[audioDataAllocatedBytes/audioFormat.SampleSizeInBytes*channelMultiplier];
-        // ^ ==== Note: moved the above lines to createNewSpeakerLine() ==== ^
-
         // Convert byte[] to short[]. And while we're at it, add same data to other (stereo) channel
         for (int i = 0; i < audioDataAllocatedBytes; i+=channelMultiplier) {
-            //audioDataShort[i] = (short)((payload.AudioData[i+1] << 8) + (payload.AudioData[i] & 0xFF));
             // Determine whether the payload has StoredAudioData or just a pointer to netMan's dgData buffer. If STORED, use it, otherwise, use pointer.
             if (payload.StoredAudioData != null) {
                 audioDataShort[i] = (short) ((payload.StoredAudioData[i+1] << 8) + (payload.StoredAudioData[i] & 0xFF));
@@ -423,7 +242,6 @@ public class PlaybackManager {
 
         // Write audio data to Speaker (line) (Assuming sampleSizeInBytes == 2)
         int shortsWritten;
-        //shortsWritten = line.write(audioDataShort, 0, audioDataShort.length);
         shortsWritten = line.write(audioDataShort, 0, audioDataAllocatedBytes);
         //Log.v(TAG, String.format("shortsWritten: %d", shortsWritten));
         totalNumSamplesWrittenToBuffer += shortsWritten / channelMultiplier;
@@ -440,8 +258,8 @@ public class PlaybackManager {
         }
     }
 
-    public void setSendMissingPacketRequestsEnabled(boolean enabled) {
-        this.sendMissingPacketRequestsEnabled = enabled;
+    public void setSendMissingPacketRequestsChecked(boolean checked) {
+        this.sendMissingPacketRequestsChecked = checked;
     }
 	
 	public int changePlaybackSpeedIfNeeded() {
@@ -450,8 +268,6 @@ public class PlaybackManager {
 		// Check if playback should be changed to Faster, Slower, or Normal speed - or keep it unchanged
 
         if (line != null) {  // only if we have a line to work with
-            //float totalNumSecondsWritten = Util.convertAudioSamplesToSeconds(totalNumSamplesWrittenToBuffer, audioFormat);
-            //float totalNumSecondsPlayed = Util.convertAudioSamplesToSeconds(line.getPlaybackHeadPosition(), audioFormat);
             float totalNumSecondsWritten = getNumAudioSecondsFromNumAudioBytes(totalNumSamplesWrittenToBuffer * afSampleSizeInBytes);
             float totalNumSecondsPlayed = getNumAudioSecondsFromNumAudioBytes(line.getPlaybackHeadPosition() * afSampleSizeInBytes);
             float numSecondsInBuffer = totalNumSecondsWritten - totalNumSecondsPlayed;
@@ -521,7 +337,6 @@ public class PlaybackManager {
         burstModeTimeoutNS = (packetRateMS - 1) * 1000000;  // -1ms so we're not too close to the edge.
         Log.v(TAG, "burstModeTimeoutNS: " + burstModeTimeoutNS);
         channelMultiplier = audioFormat.Channels == 1 ? 2 : 1;  // If mono data, *2 for stereo
-        //audioDataShort = new short[audioDataAllocatedBytes/audioFormat.SampleSizeInBytes*channelMultiplier];
         audioDataShort = new short[ADPL_AUDIO_DATA_AVAILABLE_SIZE/audioFormat.SampleSizeInBytes*channelMultiplier];
 
 		
@@ -562,7 +377,6 @@ public class PlaybackManager {
 
     private void onPrimaryBurstModeFinished() {
         //Log.v(TAG, "--- Burst Mode Finished --- ");
-        //delayAfterBurstModeFinishedCtr = 5;
         isPrimaryBurstMode = false;
 
         // Send Missing Packets (if any), though we must limit our request so that total paylostStorageList size (in secs) doesn't exceed "desiredDelay".
@@ -601,9 +415,7 @@ public class PlaybackManager {
                 }
             }
 
-
             notifyListenersOnMissingPacketRequestCreated(payloadStorageList.getMissingPayloads());
         }
-        //delayAfterBurstModeFinishedCtr = 5;
     }
 }

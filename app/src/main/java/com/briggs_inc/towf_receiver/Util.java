@@ -71,7 +71,6 @@ public class Util {
         // Assumes US-ASCII
         byte byt;
         int itr = 0;
-        //byte allBytes[] = new byte[512];  // Plenty big enough
         byte allBytes[] = new byte[maxLength];
 
         while ((byt = b[offset + itr]) != 0 && itr < maxLength) {

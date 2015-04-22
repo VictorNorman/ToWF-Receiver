@@ -8,7 +8,7 @@ import java.util.List;
  * Created by briggsm on 4/19/15.
  */
 public class PayloadStorageList {
-    // Stores PcmAudioDataPayload's, but some are "full payloads" and some are "missing payloads" (missing => have no audiodata, ie. audioData == nil)
+    // Stores PcmAudioDataPayload's, but some are "full payloads" and some are "missing payloads" (missing => have no audiodata, ie. DgData == null)
 
     // I think all the methods need to be "synchronized" because the thread that write to this list is a different thread than the one that reads from this list.
 
@@ -37,7 +37,7 @@ public class PayloadStorageList {
         } else {
             // Add each 1 at a time (if not already there)
             for (int i = 0; i < incrMissingPayloadsList.size(); i++) {
-                if (!this.hasPayloadAnywhereWithThisSeqId( ((PcmAudioDataPayload)incrMissingPayloadsList.get(i)).SeqId ) ) {
+                if (!this.hasPayloadAnywhereWithThisSeqId( incrMissingPayloadsList.get(i).SeqId ) ) {
                     payloadStorageList.add(incrMissingPayloadsList.get(i));
                     listChanged = true;
                 }
@@ -115,7 +115,6 @@ public class PayloadStorageList {
 
     public synchronized PcmAudioDataPayload popFirstPayload() {
         if (payloadStorageList.size() > 0) {
-            //PcmAudioDataPayload firstPayload = payloadStorageList.get(0);
             return payloadStorageList.remove(0);
         }
         return null;

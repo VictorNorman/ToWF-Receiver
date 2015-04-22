@@ -47,7 +47,7 @@ public class InfoService extends IntentService {
 	private static final int INFO_PORT_RECEIVE_TIMEOUT_MS = 1000;
 	
 	InfoServiceBinder infoServiceBinder = new InfoServiceBinder();
-	List<InfoServiceListener> listeners = new ArrayList<InfoServiceListener>();
+	List<InfoServiceListener> listeners = new ArrayList<>();
 
 	DatagramPacket datagram;
 	
@@ -59,7 +59,6 @@ public class InfoService extends IntentService {
 	private int serverPort;
 
     Timer serverStreamingCheckTimer = new Timer();
-	//Timer serverStreamWatchdogTimer = new Timer();
     boolean receivedAnLppPacket = false;
 
 	Boolean isServerStreaming = false;
@@ -67,19 +66,7 @@ public class InfoService extends IntentService {
 	NetworkManager netMan;
 
     AudioFormatStruct currAudioFormat;
-	List<LangPortPair> lppList = new ArrayList<LangPortPair>();
-
-    /*
-	public class OnServerStoppedStreamingTask extends TimerTask {
-		
-		@Override
-		public void run() {
-			isServerStreaming = false;
-			InfoService.this.notifyListenersOnServerStoppedStreaming();
-			lppList.clear();
-		}
-	}
-    */
+	List<LangPortPair> lppList = new ArrayList<>();
 
     public class CheckServerStoppedStreamingTask extends TimerTask {
         @Override
@@ -158,20 +145,6 @@ public class InfoService extends IntentService {
 			Payload payload = netMan.getPayload();  // Note: returns null if datagram is not for "ToWF"
 			
 			if (payload != null) {
-				/*
-                if (!isServerStreaming) {
-					notifyListenersServerStartedStreaming();
-				}
-				isServerStreaming = true;
-				*/
-                /*
-                receivedAnLppPacket = true;
-                if (!isServerStreaming) {
-                    isServerStreaming = true;
-                    notifyListenersOnServerStartedStreaming();
-                }
-                */
-
                 if (payload instanceof PcmAudioFormatPayload) {
                     // === Audio Format ===
                     PcmAudioFormatPayload pcmAudioFormatPayload = (PcmAudioFormatPayload) payload;
@@ -194,8 +167,6 @@ public class InfoService extends IntentService {
                 } else if (payload instanceof LangPortPairsPayload) {
 
                     LangPortPairsPayload lppPayload = (LangPortPairsPayload) payload;
-
-                    //resetServerStreamWatchdogTimer();
 
                     // Save Server's ip (inet) address & port
                     serverInetAddress = datagram.getAddress();
@@ -223,7 +194,6 @@ public class InfoService extends IntentService {
                         notifyListenersOnServerStartedStreaming();
                     }
                 } else if (payload instanceof EnableMprsPayload) {
-                    //EnableMprsPayload enMprsPayload = (EnableMprsPayload) payload;
                     boolean enabled = ((EnableMprsPayload) payload).Enabled;
                     if (!enabled) {
                         notifyListenersOnDisableMPRSwitch();
@@ -241,17 +211,6 @@ public class InfoService extends IntentService {
 	    // Think I don't need this here, but shouldn't hurt...
 	    cleanUp();
 	}
-
-    /*
-	private void resetServerStreamWatchdogTimer() {
-		// Set "server streaming" watchdog timer - if it fires, then hide streamView & show "waiting for server" message.
-        serverStreamWatchdogTimer.cancel();
-        serverStreamWatchdogTimer.purge();
-        serverStreamWatchdogTimer = new Timer();
-        TimerTask onServerStoppedStreamingTask = new OnServerStoppedStreamingTask();
-        serverStreamWatchdogTimer.schedule(onServerStoppedStreamingTask, SERVER_STREAMING_WATCHDOG_TIMER_TIMEOUT_MS);
-	}
-    */
 
 	private Boolean isLppListsSame(List<LangPortPair> lppList1, List<LangPortPair> lppList2) {
 		// Check size of the lists first
@@ -330,7 +289,6 @@ public class InfoService extends IntentService {
 		
 		try {
 			netMan.sendDatagram(clDatagramPacket);
-            //netMan.sendDatagramSync(clDatagramPacket);
 		} catch (IOException e) {
 			Log.v(TAG, "ExNote: Sending clDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
 		}
@@ -367,7 +325,6 @@ public class InfoService extends IntentService {
 
             try {
                 netMan.sendDatagram(mprDatagramPacket);
-                //netMan.sendDatagramSync(mprDatagramPacket);
             } catch (IOException e) {
                 Log.v(TAG, "ExNote: Sending mprDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
             }
@@ -398,7 +355,6 @@ public class InfoService extends IntentService {
 
         try {
             netMan.sendDatagram(cmDatagramPacket);
-            //netMan.sendDatagramSync(cmDatagramPacket);
         } catch (IOException e) {
             Log.v(TAG, "ExNote: Sending cmDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
         }

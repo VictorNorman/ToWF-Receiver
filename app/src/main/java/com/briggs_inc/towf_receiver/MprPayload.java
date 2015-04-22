@@ -24,15 +24,12 @@ public class MprPayload extends Payload {
 
     // "Struct" Variables
     public int Port;
-    //public List<Integer> SeqIdList = new ArrayList<>();
     public List<PcmAudioDataPayload> MissingPackets = new ArrayList<>();
 
     byte dgDataPayload[] = new byte[UDP_DATA_PAYLOAD_SIZE];
 
-    //public MprPayload(int port, List<Integer> seqIdList) {
     public MprPayload(int port, List<PcmAudioDataPayload> missingPackets) {
         this.Port = port;
-        //this.SeqIdList = seqIdList;
         this.MissingPackets = missingPackets;
 
         // Num Missing Packets
@@ -45,7 +42,6 @@ public class MprPayload extends Payload {
         Util.putIntInsideByteArray(port, dgDataPayload, MPRPL_PORT_START, MPRPL_PORT_LENGTH, false);
 
         // Missing Packet's SeqId's
-        //for (Integer mprSeqId : seqIdList) {
         for (int i = 0; i < missingPackets.size(); i++) {
             Util.putIntInsideByteArray(missingPackets.get(i).SeqId.intValue, dgDataPayload, MPRPL_PACKET0_SEQID_START + (i * MPRPL_PACKET_SEQID_LENGTH), MPRPL_PACKET_SEQID_LENGTH, false);
         }
@@ -55,4 +51,3 @@ public class MprPayload extends Payload {
         return dgDataPayload;
     }
 }
-
