@@ -319,8 +319,8 @@ public class InfoService extends IntentService {
 		DatagramPacket clDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
 		
 		try {
-			//netMan.sendDatagram(clDatagramPacket);
-            netMan.sendDatagramSync(clDatagramPacket);
+			netMan.sendDatagram(clDatagramPacket);
+            //netMan.sendDatagramSync(clDatagramPacket);
 		} catch (IOException e) {
 			Log.v(TAG, "ExNote: Sending clDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
 		}
@@ -356,8 +356,8 @@ public class InfoService extends IntentService {
             DatagramPacket mprDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
 
             try {
-                //netMan.sendDatagram(mprDatagramPacket);
-                netMan.sendDatagramSync(mprDatagramPacket);
+                netMan.sendDatagram(mprDatagramPacket);
+                //netMan.sendDatagramSync(mprDatagramPacket);
             } catch (IOException e) {
                 Log.v(TAG, "ExNote: Sending mprDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
             }
@@ -387,8 +387,8 @@ public class InfoService extends IntentService {
         DatagramPacket cmDatagramPacket = new DatagramPacket(dgData, dataLength, serverInetAddress, serverPort);
 
         try {
-            //netMan.sendDatagram(cmDatagramPacket);
-            netMan.sendDatagramSync(cmDatagramPacket);
+            netMan.sendDatagram(cmDatagramPacket);
+            //netMan.sendDatagramSync(cmDatagramPacket);
         } catch (IOException e) {
             Log.v(TAG, "ExNote: Sending cmDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
         }

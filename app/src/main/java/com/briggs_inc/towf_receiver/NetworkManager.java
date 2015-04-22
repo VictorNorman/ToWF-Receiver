@@ -61,14 +61,17 @@ public class NetworkManager {
             return null;
         }
 	}
-	/*
+
 	public void sendDatagram(DatagramPacket dg) throws IOException {
+        // Need to do Networking OFF of the Main thread. If try to do on Main thread, on newer Android devices, you get: NetworkOnMainThreadException
 		new SendDatagramThread(dg).start();
 	}
-    */
+
+    /*
     public void sendDatagramSync(DatagramPacket dg) throws IOException {
         socket.send(dg);
     }
+    */
 
 	public Payload getPayload() {
 		// First, check for "ToWF" in Header
