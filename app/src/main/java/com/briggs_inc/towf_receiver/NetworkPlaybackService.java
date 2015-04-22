@@ -70,8 +70,9 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	PlaybackManager pbMan;
 	
 	NpServiceBinder npServiceBinder = new NpServiceBinder();
-	
-	Timer receivingAudioTimer = new Timer();
+
+    //Timer serverStreamingCheckTimer = new Timer();
+	Timer receivingAudioCheckTimer = new Timer();
 	
 	WifiLock wifiLock;
     WakeLock wakeLock;
@@ -90,8 +91,11 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         @Override
         public void run() {
             if (currNumReceivedAudioDataPackets == lastNumReceivedAudioDataPackets) {
-                Log.v(TAG, "Not receiving audio...");
-                NetworkPlaybackService.this.onCurrentlyNotReceivingAudio();
+                if (isReceivingAudio) {
+                    isReceivingAudio = false;
+                    Log.v(TAG, "Not receiving audio...");
+                    NetworkPlaybackService.this.onCurrentlyNotReceivingAudio();
+                }
             }
             lastNumReceivedAudioDataPackets = currNumReceivedAudioDataPackets;
         }
@@ -160,11 +164,11 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         isListening = true;
         //isAudioFormatValid = false;
 
-        // Start the ReceivingAudio timer
-        receivingAudioTimer = new Timer();
+        // Start the ServerStreaming & ReceivingAudio timers
+        //receivingAudioCheckTimer = new Timer();
         //TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
-        //receivingAudioTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
-        receivingAudioTimer.schedule(new CheckIfReceivingAudioTask(), 200, 200);  //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+        //receivingAudioCheckTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+        receivingAudioCheckTimer.schedule(new CheckIfReceivingAudioTask(), 200, 200);  //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
         
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -219,12 +223,12 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	                isReceivingAudio = true;
 
                     /*
-                    if (receivingAudioTimer != null) {
-                        receivingAudioTimer.cancel();
-                        receivingAudioTimer.purge();
-                        receivingAudioTimer = new Timer();
+                    if (receivingAudioCheckTimer != null) {
+                        receivingAudioCheckTimer.cancel();
+                        receivingAudioCheckTimer.purge();
+                        receivingAudioCheckTimer = new Timer();
                         TimerTask onCurrentlyNotReceivingAudioTask = new OnCurrentlyNotReceivingAudioTask();
-                        receivingAudioTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
+                        receivingAudioCheckTimer.schedule(onCurrentlyNotReceivingAudioTask, 200); //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
                     }
                     */
 
@@ -286,10 +290,10 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 
         isListening = false;
 
-        if (receivingAudioTimer != null) {
-            receivingAudioTimer.cancel();
-            receivingAudioTimer.purge();
-            receivingAudioTimer = null;
+        if (receivingAudioCheckTimer != null) {
+            receivingAudioCheckTimer.cancel();
+            receivingAudioCheckTimer.purge();
+            receivingAudioCheckTimer = null;
         }
 
         if (pbMan != null) {

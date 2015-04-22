@@ -55,25 +55,42 @@ public class InfoService extends IntentService {
 
 	private InetAddress serverInetAddress;
 	private int serverPort;
-	
-	Timer serverStreamWatchdogTimer = new Timer();
-	
+
+    Timer serverStreamingCheckTimer = new Timer();
+	//Timer serverStreamWatchdogTimer = new Timer();
+    boolean receivedAnLppPacket = false;
+
 	Boolean isServerStreaming = false;
 	
 	NetworkManager netMan;
 
     AudioFormatStruct currAudioFormat;
 	List<LangPortPair> lppList = new ArrayList<LangPortPair>();
-	
+
+    /*
 	public class OnServerStoppedStreamingTask extends TimerTask {
 		
 		@Override
 		public void run() {
 			isServerStreaming = false;
-			InfoService.this.notifyListenersServerStoppedStreaming();
+			InfoService.this.notifyListenersOnServerStoppedStreaming();
 			lppList.clear();
 		}
 	}
+    */
+
+    public class CheckServerStoppedStreamingTask extends TimerTask {
+        @Override
+        public void run() {
+            if (!receivedAnLppPacket) {
+                if (isServerStreaming) {
+                    isServerStreaming = false;
+                    notifyListenersOnServerStoppedStreaming();
+                }
+            }
+            receivedAnLppPacket = false;
+        }
+    }
 	
 	public class InfoServiceBinder extends Binder {
 		public InfoService getService() {
@@ -100,7 +117,9 @@ public class InfoService extends IntentService {
 	//@Override
 	protected void onHandleIntent(Intent intent) {
 		Log.v(TAG, "onHandleIntent()");
-		
+
+        serverStreamingCheckTimer.schedule(new CheckServerStoppedStreamingTask(), 1000, SERVER_STREAMING_CHECK_TIMER_INTERVAL_MS);
+
 		// Create our instance of NetworkManager
      	try {
      		netMan = new NetworkManager(INFO_PORT_NUMBER, INFO_PORT_RECEIVE_TIMEOUT_MS);
@@ -137,10 +156,19 @@ public class InfoService extends IntentService {
 			Payload payload = netMan.getPayload();  // Note: returns null if datagram is not for "ToWF"
 			
 			if (payload != null) {
-				if (!isServerStreaming) {
+				/*
+                if (!isServerStreaming) {
 					notifyListenersServerStartedStreaming();
 				}
 				isServerStreaming = true;
+				*/
+                /*
+                receivedAnLppPacket = true;
+                if (!isServerStreaming) {
+                    isServerStreaming = true;
+                    notifyListenersOnServerStartedStreaming();
+                }
+                */
 
                 if (payload instanceof PcmAudioFormatPayload) {
                     // === Audio Format ===
@@ -162,9 +190,10 @@ public class InfoService extends IntentService {
                         notifyListenersOnAudioFormatChanged(currAudioFormat);
                     }
                 } else if (payload instanceof LangPortPairsPayload) {
+
                     LangPortPairsPayload lppPayload = (LangPortPairsPayload) payload;
 
-                    resetServerStreamWatchdogTimer();
+                    //resetServerStreamWatchdogTimer();
 
                     // Save Server's ip (inet) address & port
                     serverInetAddress = datagram.getAddress();
@@ -184,6 +213,13 @@ public class InfoService extends IntentService {
 
                         notifyListenersOnLppListChanged(lppList);
                     }
+
+                    receivedAnLppPacket = true;
+                    if (!isServerStreaming) {
+                        isServerStreaming = true;
+                        notifyListenersOnLppListChanged(lppList);
+                        notifyListenersOnServerStartedStreaming();
+                    }
                 } else if (payload instanceof ChatMsgPayload) {
                     ChatMsgPayload cmPayload = (ChatMsgPayload) payload;
                     notifyListenersOnChatMsgReceived(cmPayload.Msg);
@@ -195,7 +231,8 @@ public class InfoService extends IntentService {
 	    // Think I don't need this here, but shouldn't hurt...
 	    cleanUp();
 	}
-	
+
+    /*
 	private void resetServerStreamWatchdogTimer() {
 		// Set "server streaming" watchdog timer - if it fires, then hide streamView & show "waiting for server" message.
         serverStreamWatchdogTimer.cancel();
@@ -204,7 +241,8 @@ public class InfoService extends IntentService {
         TimerTask onServerStoppedStreamingTask = new OnServerStoppedStreamingTask();
         serverStreamWatchdogTimer.schedule(onServerStoppedStreamingTask, SERVER_STREAMING_WATCHDOG_TIMER_TIMEOUT_MS);
 	}
-	
+    */
+
 	private Boolean isLppListsSame(List<LangPortPair> lppList1, List<LangPortPair> lppList2) {
 		// Check size of the lists first
 		if (lppList1.size() != lppList2.size()) {
@@ -281,7 +319,8 @@ public class InfoService extends IntentService {
 		DatagramPacket clDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
 		
 		try {
-			netMan.sendDatagram(clDatagramPacket);
+			//netMan.sendDatagram(clDatagramPacket);
+            netMan.sendDatagramSync(clDatagramPacket);
 		} catch (IOException e) {
 			Log.v(TAG, "ExNote: Sending clDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
 		}
@@ -317,8 +356,8 @@ public class InfoService extends IntentService {
             DatagramPacket mprDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
 
             try {
-                netMan.sendDatagram(mprDatagramPacket);
-                //netMan.sendDatagramSync(mprDatagramPacket);
+                //netMan.sendDatagram(mprDatagramPacket);
+                netMan.sendDatagramSync(mprDatagramPacket);
             } catch (IOException e) {
                 Log.v(TAG, "ExNote: Sending mprDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
             }
@@ -348,7 +387,8 @@ public class InfoService extends IntentService {
         DatagramPacket cmDatagramPacket = new DatagramPacket(dgData, dataLength, serverInetAddress, serverPort);
 
         try {
-            netMan.sendDatagram(cmDatagramPacket);
+            //netMan.sendDatagram(cmDatagramPacket);
+            netMan.sendDatagramSync(cmDatagramPacket);
         } catch (IOException e) {
             Log.v(TAG, "ExNote: Sending cmDatagramPacket over socket FAILED!\nExMessage: " + e.getMessage());
         }
@@ -367,18 +407,18 @@ public class InfoService extends IntentService {
 		listeners.remove(listener);
 	}
 
-	private void notifyListenersServerStartedStreaming() {
+	private void notifyListenersOnServerStartedStreaming() {
 		for (InfoServiceListener listener : listeners) {
 			listener.onServerStartedStreaming();
 		}
 	}
-	
-	private void notifyListenersServerStoppedStreaming() {
+
+	private void notifyListenersOnServerStoppedStreaming() {
     	for (InfoServiceListener listener : listeners) {
     		listener.onServerStoppedStreaming();
     	}
 	}
-	
+
 	public Boolean getIsServerStreaming() {
 		return isServerStreaming;
 	}

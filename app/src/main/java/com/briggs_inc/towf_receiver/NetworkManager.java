@@ -18,7 +18,7 @@ public class NetworkManager {
     DatagramPacket dg;
 	byte dgData[];
     //byte dgDataPayload[];
-	int receiveTimeoutMs;
+	//int receiveTimeoutMs;
 	
 	class SendDatagramThread extends Thread {
 		DatagramPacket datagram;
@@ -45,30 +45,30 @@ public class NetworkManager {
 		Log.d(TAG, "NetworkManager Constructor - port: " + port);
       	socket = new DatagramSocket(port);
         dgData = new byte[UDP_DATA_SIZE];
-        this.receiveTimeoutMs = receiveTimeoutMs;
+        dg = new DatagramPacket(dgData, dgData.length);
+        //this.receiveTimeoutMs = receiveTimeoutMs;
+        socket.setSoTimeout(receiveTimeoutMs);
 	}
 	
 	public DatagramPacket receiveDatagram() throws SocketException, SocketTimeoutException, IOException {
 		//DatagramPacket dg = new DatagramPacket(DgData, DgData.length);
-        dg = new DatagramPacket(dgData, dgData.length);
+        //dg = new DatagramPacket(dgData, dgData.length);
 		if (socket != null) {
-            socket.setSoTimeout(receiveTimeoutMs);
+            //socket.setSoTimeout(receiveTimeoutMs);
             socket.receive(dg);  // Hangs (blocks) here until packet is received (or times out)... (but doesn't use CPU resources while blocking)
             return dg;
         } else {
             return null;
         }
 	}
-	
+	/*
 	public void sendDatagram(DatagramPacket dg) throws IOException {
 		new SendDatagramThread(dg).start();
 	}
-
-    /*
+    */
     public void sendDatagramSync(DatagramPacket dg) throws IOException {
         socket.send(dg);
     }
-    */
 
 	public Payload getPayload() {
 		// First, check for "ToWF" in Header
