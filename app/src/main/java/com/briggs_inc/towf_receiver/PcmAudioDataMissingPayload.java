@@ -5,8 +5,13 @@ package com.briggs_inc.towf_receiver;
  */
 public class PcmAudioDataMissingPayload extends PcmAudioDataPayload {
 
-    public PcmAudioDataMissingPayload(byte[] dgDataPayload) {
-        super(dgDataPayload);
+    public PcmAudioDataMissingPayload() {
+        super();
+    }
+
+    // Copy constructor
+    PcmAudioDataMissingPayload(PcmAudioDataPayload adp) {
+        super(adp);
     }
 
     public PcmAudioDataMissingPayload(SeqId seqId) {

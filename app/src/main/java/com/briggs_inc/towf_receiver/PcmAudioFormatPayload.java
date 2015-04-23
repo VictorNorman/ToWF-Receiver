@@ -11,8 +11,12 @@ public class PcmAudioFormatPayload extends Payload {
 
     // "Struct" variables
     public int AfSampleRate;
-	
-    public PcmAudioFormatPayload(byte[] dgData) {
+
+    public PcmAudioFormatPayload() {
+        AfSampleRate = 0;
+    }
+
+    public void initWithDgData(byte[] dgData) {
         AfSampleRate = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + AFDG_SAMPLE_RATE_START, AFDG_SAMPLE_RATE_LENGTH, false);
-	}
+    }
 }

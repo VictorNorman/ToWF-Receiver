@@ -16,15 +16,20 @@ public class LangPortPairsPayload extends Payload {
     public static final int LPP_PORT_LENGTH = 2;
     
 	// "Struct" Variables
-    List<LangPortPair> LppList = new ArrayList<>();
-	
-    public LangPortPairsPayload(byte[] dgData) {
+    List<LangPortPair> LppList;
+
+    public LangPortPairsPayload() {
+        LppList = new ArrayList<>();
+    }
+
+    public void initWithDgData(byte[] dgData) {
         int numLangPortPairs = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + LPP_NUM_PAIRS_START, LPP_NUM_PAIRS_LENGTH, false);
 
+        LppList.clear();
         for (int i = 0; i < numLangPortPairs; i++) {
             String language = Util.getNullTermStringFromByteArray(dgData, DG_DATA_HEADER_LENGTH + LPP_LANG0_START + (i*(LPP_LANG_LENGTH+LPP_PORT_LENGTH)), LPP_LANG_LENGTH);
             int port = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + LPP_PORT0_START + (i*(LPP_LANG_LENGTH+LPP_PORT_LENGTH)), LPP_PORT_LENGTH, false);
             LppList.add(new LangPortPair(language, port));
         }
-	}
+    }
 }

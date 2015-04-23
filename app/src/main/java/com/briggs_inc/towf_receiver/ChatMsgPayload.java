@@ -25,8 +25,12 @@ public class ChatMsgPayload extends Payload {
         Util.putNullTermStringInsideByteArray(msg, dgDataPayload, CHATMSG_MSG_START, UDP_DATA_PAYLOAD_SIZE, false);
     }
 
-    // Constructor - for receiving a Chat Msg Packet
-    public ChatMsgPayload(byte[] dgData) {
+    // Constructor & initWithDgData - for receiving a Chat Msg Packet
+    public ChatMsgPayload() {
+        this.Msg = "";
+    }
+
+    public void initWithDgData(byte[] dgData) {
         this.Msg = Util.getNullTermStringFromByteArray(dgData, DG_DATA_HEADER_LENGTH + CHATMSG_MSG_START, dgData.length - DG_DATA_HEADER_LENGTH);
     }
 

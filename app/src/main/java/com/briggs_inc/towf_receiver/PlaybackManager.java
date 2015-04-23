@@ -178,8 +178,8 @@ public class PlaybackManager {
                     }
 
                     // === Add the "Received" packet ===
-                    pcmAudioDataPayload.storeAudioData();  // First STORE the AudioData (becuase up to now, it just had a pointer to netMan's dgData buffer.
-                    payloadStorageList.addFullPayload(pcmAudioDataPayload);
+                    PcmAudioDataPayload fullCopyPayload = new PcmAudioDataRegularPayload(pcmAudioDataPayload);
+                    payloadStorageList.addFullPayload(fullCopyPayload);
 
                     isWaitingOnMissingPackets = true;
                 }
@@ -222,12 +222,8 @@ public class PlaybackManager {
 
         // Convert byte[] to short[]. And while we're at it, add same data to other (stereo) channel
         for (int i = 0; i < audioDataAllocatedBytes; i+=2) {  // +=2 for Stereo
-            // Determine whether the payload has StoredAudioData or just a pointer to netMan's dgData buffer. If STORED, use it, otherwise, use pointer.
-            if (payload.StoredAudioData != null) {
-                audioDataShort[i] = (short) ((payload.StoredAudioData[i+1] << 8) + (payload.StoredAudioData[i] & 0xFF));
-            } else {
-                audioDataShort[i] = (short) ((payload.DgData[DG_DATA_HEADER_LENGTH + PcmAudioDataPayload.ADPL_HEADER_LENGTH + i + 1] << 8) + (payload.DgData[DG_DATA_HEADER_LENGTH + PcmAudioDataPayload.ADPL_HEADER_LENGTH + i] & 0xFF));
-            }
+            audioDataShort[i] = (short) ((payload.DgData[DG_DATA_HEADER_LENGTH + PcmAudioDataPayload.ADPL_HEADER_LENGTH + i + 1] << 8) + (payload.DgData[DG_DATA_HEADER_LENGTH + PcmAudioDataPayload.ADPL_HEADER_LENGTH + i] & 0xFF));
+
             for (int j = 1; j < 2; j++) {  // 2 for Stereo
                 audioDataShort[i + j] = audioDataShort[i];
             }

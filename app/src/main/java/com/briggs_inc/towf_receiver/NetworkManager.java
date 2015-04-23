@@ -18,6 +18,13 @@ public class NetworkManager {
     DatagramPacket dg;
 	byte dgData[];
 
+    PcmAudioFormatPayload pcmAudioFormatPayload = new PcmAudioFormatPayload();
+    PcmAudioDataRegularPayload pcmAudioDataRegularPayload = new PcmAudioDataRegularPayload();
+    LangPortPairsPayload langPortPairsPayload = new LangPortPairsPayload();
+    PcmAudioDataMissingPayload pcmAudioDataMissingPayload = new PcmAudioDataMissingPayload();
+    EnableMprsPayload enableMprsPayload = new EnableMprsPayload();
+    ChatMsgPayload cmPayload = new ChatMsgPayload();
+
 	class SendDatagramThread extends Thread {
 		DatagramPacket datagram;
 		
@@ -73,24 +80,24 @@ public class NetworkManager {
 		switch (payloadType) {
 	    	case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_FORMAT:
 	            //Log.d(TAG, "*** Audio Format Datagram ***");
-                PcmAudioFormatPayload pcmAudioFormatPayload = new PcmAudioFormatPayload(dgData);
+                pcmAudioFormatPayload.initWithDgData(dgData);
 	            return pcmAudioFormatPayload;
 	    	case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_REGULAR:
                 //Log.v(TAG, "REGULAR Payload");
-                PcmAudioDataRegularPayload pcmAudioDataRegularPayload = new PcmAudioDataRegularPayload(dgData);
+                pcmAudioDataRegularPayload.initWithDgData(dgData);
 	    		return pcmAudioDataRegularPayload;
 	    	case DG_DATA_HEADER_PAYLOAD_TYPE_LANG_PORT_PAIRS:
-                LangPortPairsPayload langPortPairsPayload = new LangPortPairsPayload(dgData);
+                langPortPairsPayload.initWithDgData(dgData);
 	    		return langPortPairsPayload;
             case DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_MISSING:
                 //Log.v(TAG, "MISSING Payload");
-                PcmAudioDataMissingPayload pcmAudioDataMissingPayload = new PcmAudioDataMissingPayload(dgData);
+                pcmAudioDataMissingPayload.initWithDgData(dgData);
                 return pcmAudioDataMissingPayload;
             case DG_DATA_HEADER_PAYLOAD_TYPE_ENABLE_MPRS:
-                EnableMprsPayload enableMprsPayload = new EnableMprsPayload(dgData);
+                enableMprsPayload.initWithDgData(dgData);
                 return enableMprsPayload;
             case DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG:
-                ChatMsgPayload cmPayload = new ChatMsgPayload(dgData);
+                cmPayload.initWithDgData(dgData);
                 return cmPayload;
 	    	default:
 	    		return null;

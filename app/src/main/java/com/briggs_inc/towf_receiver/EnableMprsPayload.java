@@ -20,8 +20,11 @@ public class EnableMprsPayload extends Payload {
     // "Struct" Variables
     public boolean Enabled;
 
-    //public EnableMprsPayload (byte[] dgDataPayload) {
-    public EnableMprsPayload (byte[] dgData) {
-        this.Enabled = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + ENMPRS_ENABLED_START, ENMPRS_ENABLED_LENGTH, false) == 1 ? true : false;
+    public EnableMprsPayload () {
+        Enabled = false;
+    }
+
+    public void initWithDgData(byte[] dgData) {
+        this.Enabled = Util.getIntFromByteArray(dgData, DG_DATA_HEADER_LENGTH + ENMPRS_ENABLED_START, ENMPRS_ENABLED_LENGTH, false) == 1;
     }
 }
