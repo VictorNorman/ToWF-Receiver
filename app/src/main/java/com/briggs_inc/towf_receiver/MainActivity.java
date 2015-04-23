@@ -98,6 +98,10 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			
 			npService.addListener(MainActivity.this);
 
+            if (npService.getStreamPort() != 0) {
+                streamPort = npService.getStreamPort();
+            }
+
 			updateGuiToReflectSystemState();
 		}
 	};

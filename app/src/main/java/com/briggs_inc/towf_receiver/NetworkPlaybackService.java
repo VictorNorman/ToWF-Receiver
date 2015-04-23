@@ -94,7 +94,6 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	
 	public NetworkPlaybackService() {
 		super("NetworkPlaybackService");
-        pbMan = new PlaybackManager();
 	}
 
 	@Override
@@ -103,15 +102,9 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 
 		Bundle extras = intent.getExtras();
 		if (extras != null && intent.getExtras().getInt(STREAM_PORT_KEY) != 0) {
+            pbMan = new PlaybackManager(intent.getExtras().getInt(AF_SAMPLE_RATE_KEY, 0), intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f), intent.getExtras().getBoolean(SEND_MPRS_ENABLED_KEY, false));
 			streamPort = intent.getExtras().getInt(STREAM_PORT_KEY, 7770);
 			pbMan.addListener(this);
-            pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
-            int sr = intent.getExtras().getInt(AF_SAMPLE_RATE_KEY, 0);
-            Log.v(TAG, "intent sampleRate: " + sr);
-            if (sr != 0) {
-                pbMan.createNewSpeakerLine(sr);
-            }
-            pbMan.setSendMissingPacketRequestsChecked(intent.getExtras().getBoolean(SEND_MPRS_ENABLED_KEY, false));
 		} else {
 			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from it's intent. Unable to start service.");
 			return;
@@ -359,7 +352,11 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         notifyListenersOnMissingPacketRequestCreated(missingPackets);
     }
 
-	@Override
+    public int getStreamPort() {
+        return streamPort;
+    }
+
+    @Override
 	public void onDestroy() {
 		Log.v(TAG, "onDestroy()");
 		

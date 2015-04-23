@@ -19,7 +19,7 @@ public class PlaybackManager {
 	private static final String TAG = "PlaybackManager";
 
     List<PlaybackManagerListener> listeners = new ArrayList<>();
-	private static final float DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS = 4.0f;
+	private static final float DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS = 2.5f;
 	public static final int PLAYBACK_SPEED_UNCHANGED = -1;
 	public static final int PLAYBACK_SPEED_NORMAL = 0;
 	public static final int PLAYBACK_SPEED_FASTER = 1;
@@ -54,17 +54,23 @@ public class PlaybackManager {
 	private int playbackSpeed = PLAYBACK_SPEED_NORMAL;
     private long lastPacketReceivedTimeNS;
 
-    public PlaybackManager() {
+    public PlaybackManager(int sampleRate, float desiredDelay, boolean isSendMPRsChecked) {
+        this.afSampleRate = sampleRate;
+        this.desiredDelay = desiredDelay;
+        this.sendMissingPacketRequestsChecked = isSendMPRsChecked;
+
         lastQueuedSeqId = new SeqId(0x0000);
+
         // Packet Recovery Related
-        sendMissingPacketRequestsChecked = false;
         firstPacketReceived = false;  // To specify that we just started (so we don't think that we just skipped 100 or 1000 packets)
         payloadStorageList = new PayloadStorageList();
         isWaitingOnMissingPackets = false;
         isPrimaryBurstMode = false;
         highestMissingSeqId = new SeqId(0x0000);
 
-        desiredDelay = 1.1f;  // Note: this should be set from constructor parameter if possible. (along with: audioFormat, )
+        if (this.afSampleRate != 0) {
+            createNewSpeakerLine(this.afSampleRate);
+        }
 	}
 	
 	public void cleanUp() {
@@ -330,9 +336,9 @@ public class PlaybackManager {
 
         audioDataShort = new short[ADPL_AUDIO_DATA_AVAILABLE_SIZE / AF_SAMPLE_SIZE_IN_BYTES * 2];  // *2 for Stereo
 
-        int desiredSpeakerLineBufferSizeInBytes = (int) (DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS * afSampleRate * AF_SAMPLE_SIZE_IN_BYTES * AF_CHANNELS);
+        int desiredSpeakerLineBufferSizeInBytes = (int) (DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS * afSampleRate * AF_SAMPLE_SIZE_IN_BYTES * 2);  // *2 for Stereo
         line = new AudioTrack(AudioManager.STREAM_MUSIC, afSampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, desiredSpeakerLineBufferSizeInBytes, AudioTrack.MODE_STREAM);
-        line.play();  // ??? Here, right???
+        line.play();  // Unfortunately, it appears that the buffer must be completely filled before playback even starts. (After which, we will run at 1.2x until we get to our desiredDelay.) [but that means we can put line.play() here, as long as we start filling the buffer before some timeout.]
 	}
 
 	public int getPlaybackSpeed() {
