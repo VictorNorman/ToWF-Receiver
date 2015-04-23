@@ -215,13 +215,13 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			lblPlaybackSpeed.setTextColor(Color.YELLOW);
 		} else {
 			lblPlaybackSpeed.setText("1x");
-			lblPlaybackSpeed.setTextColor(Color.GREEN);
+			lblPlaybackSpeed.setTextColor(Color.rgb(0x00, 0x80, 0x00));
 		}		
 	}
 
 	private void updateLblReceivingAudio(Boolean isReceivingAudio) {
 		if (isReceivingAudio) {
-			lblReceivingAudio.setTextColor(Color.GREEN);
+			lblReceivingAudio.setTextColor(Color.rgb(0x00, 0x80, 0x00));
 		} else {
 			lblReceivingAudio.setTextColor(Color.LTGRAY);
 		}
@@ -438,7 +438,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			@Override
 			public void run() {
 				if (isReceivingAudio) {
-					lblReceivingAudio.setTextColor(Color.GREEN);
+					lblReceivingAudio.setTextColor(Color.rgb(0x00, 0x80, 0x00));
 				} else {
 					lblReceivingAudio.setTextColor(Color.LTGRAY);
 				}
@@ -472,16 +472,22 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 	
 	
 	private void saveGuiPrefsToFile() {
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		/* KEEP!!! for future use
+		//   but deciding not to store desiredDelay, in case user sets it too low & maybe causes crash on device. If saved, then no easy way to set the delay higher.
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		SharedPreferences.Editor editor = prefs.edit();
 		editor.putString(DESIRED_DELAY_KEY, desiredDelayLabel.getText().toString());
 		editor.commit();
+		*/
 	}
 	
 	
 	private void loadGuiPrefsFromFile() {
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		/* KEEP!!! for future use
+		//   but deciding not to store desiredDelay, in case user sets it too low & maybe causes crash on device. If saved, then no easy way to set the delay higher.
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		desiredDelayLabel.setText(prefs.getString(DESIRED_DELAY_KEY, "1.0"));
+		*/
 	}
 	
 	private void outputToDebugResults(String msg) {
