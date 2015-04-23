@@ -73,8 +73,8 @@ public class PlaybackManager {
         	line.pause();
         	line.flush();
         	line.release();
-            line = null;
         }
+        line = null;
 	}
 	
 	public void handleAudioDataPayload(PcmAudioDataPayload pcmAudioDataPayload) {

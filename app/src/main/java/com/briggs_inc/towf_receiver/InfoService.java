@@ -65,7 +65,7 @@ public class InfoService extends IntentService {
 	
 	NetworkManager netMan;
 
-    int currSampleRate = 0;
+    int afSampleRate = 0;
 	List<LangPortPair> lppList = new ArrayList<>();
 
     public class CheckServerStoppedStreamingTask extends TimerTask {
@@ -149,15 +149,15 @@ public class InfoService extends IntentService {
                     // === Audio Format ===
                     PcmAudioFormatPayload pcmAudioFormatPayload = (PcmAudioFormatPayload) payload;
                     int plSampleRate = pcmAudioFormatPayload.AfSampleRate;
-                    if (plSampleRate != currSampleRate) {
+                    if (plSampleRate != afSampleRate) {
 
                         // Create new currAudioFormat
-                        currSampleRate = plSampleRate;
+                        afSampleRate = plSampleRate;
 
                         // Print
-                        Log.i(TAG, "New Sample Rate:" + currSampleRate + " Hz");
+                        Log.i(TAG, "New Sample Rate:" + afSampleRate + " Hz");
 
-                        notifyListenersOnAfSampleRateChanged(currSampleRate);
+                        notifyListenersOnAfSampleRateChanged(afSampleRate);
                     }
                 } else if (payload instanceof LangPortPairsPayload) {
 
@@ -184,10 +184,10 @@ public class InfoService extends IntentService {
 
                     receivedAnLppPacket = true;
                     if (!isServerStreaming) {
-                        isServerStreaming = true;
                         notifyListenersOnLppListChanged(lppList);
                         notifyListenersOnServerStartedStreaming();
                     }
+                    isServerStreaming = true;
                 } else if (payload instanceof EnableMprsPayload) {
                     boolean enabled = ((EnableMprsPayload) payload).Enabled;
                     if (!enabled) {
@@ -395,4 +395,8 @@ public class InfoService extends IntentService {
 	public Boolean getIsServerStreaming() {
 		return isServerStreaming;
 	}
+
+    public int getAfSampleRate() {
+        return afSampleRate;
+    }
 }

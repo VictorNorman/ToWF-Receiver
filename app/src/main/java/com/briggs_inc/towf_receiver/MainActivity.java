@@ -78,8 +78,6 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     InfoService infoService;
     Boolean isBoundToInfoService = false;
 
-    int afSampleRate = 0;
-    
     int streamPort;
     
     private ServiceConnection npServiceConnection = new ServiceConnection() {
@@ -120,7 +118,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			isBoundToInfoService = true;
 			
 			infoService.addListener(MainActivity.this);
-			
+
 			updateGuiToReflectSystemState();
 		}
 	};
@@ -412,8 +410,8 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 	    streamPort = ((LangPortPair)languageSpinner.getSelectedItem()).Port;
     	npServiceIntent.putExtra(STREAM_PORT_KEY, streamPort);
     	npServiceIntent.putExtra(DESIRED_DELAY_KEY, Float.valueOf(desiredDelayLabel.getText().toString()));
-        if (afSampleRate != 0) {
-            npServiceIntent.putExtra(AF_SAMPLE_RATE_KEY, afSampleRate);
+        if (isBoundToInfoService) {  // should always be bound at this point in the code, but just to make sure
+            npServiceIntent.putExtra(AF_SAMPLE_RATE_KEY, infoService.getAfSampleRate());
         }
         npServiceIntent.putExtra(SEND_MPRS_ENABLED_KEY, sendMissingPacketRequestsTB.isChecked());
     	startService(npServiceIntent);
@@ -557,8 +555,6 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     @Override
     public void onAfSampleRateChanged(final int sampleRate) {
         Log.v(TAG, "onAfSampleRateChanged: " + sampleRate);
-
-        afSampleRate=sampleRate;
 
         if(npService!=null&&isBoundToNpService) {
             Log.v(TAG, "npService is NOT null. Telling npServer about afSampleRate change...");

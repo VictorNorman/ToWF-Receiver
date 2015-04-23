@@ -107,6 +107,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 			pbMan.addListener(this);
             pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
             int sr = intent.getExtras().getInt(AF_SAMPLE_RATE_KEY, 0);
+            Log.v(TAG, "intent sampleRate: " + sr);
             if (sr != 0) {
                 pbMan.createNewSpeakerLine(sr);
             }
