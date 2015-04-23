@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.briggs_inc.towf_receiver.PacketConstants.*;
+import static com.briggs_inc.towf_receiver.MiscConstants.*;
 
 interface PlaybackManagerListener {
     public void onMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPayloads);
@@ -27,21 +28,17 @@ public class PlaybackManager {
 	public static final float FASTER_PLAYBACK_MULTIPLIER = 1.2F;
 	public static final float SLOWER_PLAYBACK_MULTIPLIER = 0.8F;
 
-	AudioFormatStruct audioFormat;
+    int afSampleRate = 0;
 	AudioTrack line;
 	
 	private short audioDataShort[]; // For a line setup as: AudioFormat.ENCODING_PCM_16BIT
     private SeqId lastQueuedSeqId;
-	private int channelMultiplier;
 	private long totalNumSamplesWrittenToBuffer;
     private float desiredDelay;
 	private Boolean playFaster = false;
 	private Boolean playSlower = false;
 
     // Derived from Audio Format
-    int afSampleSizeInBytes;
-    int afFrameSize;
-    int audioDataMaxValidSize;
     int packetRateMS;
 
     // Packet Recovery Related
@@ -224,14 +221,14 @@ public class PlaybackManager {
         //Log.v(TAG, " audioDataAllocatedBytes: " + audioDataAllocatedBytes);
 
         // Convert byte[] to short[]. And while we're at it, add same data to other (stereo) channel
-        for (int i = 0; i < audioDataAllocatedBytes; i+=channelMultiplier) {
+        for (int i = 0; i < audioDataAllocatedBytes; i+=2) {  // +=2 for Stereo
             // Determine whether the payload has StoredAudioData or just a pointer to netMan's dgData buffer. If STORED, use it, otherwise, use pointer.
             if (payload.StoredAudioData != null) {
                 audioDataShort[i] = (short) ((payload.StoredAudioData[i+1] << 8) + (payload.StoredAudioData[i] & 0xFF));
             } else {
                 audioDataShort[i] = (short) ((payload.DgData[DG_DATA_HEADER_LENGTH + PcmAudioDataPayload.ADPL_HEADER_LENGTH + i + 1] << 8) + (payload.DgData[DG_DATA_HEADER_LENGTH + PcmAudioDataPayload.ADPL_HEADER_LENGTH + i] & 0xFF));
             }
-            for (int j = 1; j < channelMultiplier; j++) {
+            for (int j = 1; j < 2; j++) {  // 2 for Stereo
                 audioDataShort[i + j] = audioDataShort[i];
             }
         }
@@ -244,7 +241,7 @@ public class PlaybackManager {
         int shortsWritten;
         shortsWritten = line.write(audioDataShort, 0, audioDataAllocatedBytes);
         //Log.v(TAG, String.format("shortsWritten: %d", shortsWritten));
-        totalNumSamplesWrittenToBuffer += shortsWritten / channelMultiplier;
+        totalNumSamplesWrittenToBuffer += shortsWritten / 2;  // 2 for Stereo
 
         lastQueuedSeqId = payload.SeqId;
     }
@@ -268,8 +265,8 @@ public class PlaybackManager {
 		// Check if playback should be changed to Faster, Slower, or Normal speed - or keep it unchanged
 
         if (line != null) {  // only if we have a line to work with
-            float totalNumSecondsWritten = getNumAudioSecondsFromNumAudioBytes(totalNumSamplesWrittenToBuffer * afSampleSizeInBytes);
-            float totalNumSecondsPlayed = getNumAudioSecondsFromNumAudioBytes(line.getPlaybackHeadPosition() * afSampleSizeInBytes);
+            float totalNumSecondsWritten = getNumAudioSecondsFromNumAudioBytes(totalNumSamplesWrittenToBuffer * AF_SAMPLE_SIZE_IN_BYTES);
+            float totalNumSecondsPlayed = getNumAudioSecondsFromNumAudioBytes(line.getPlaybackHeadPosition() * AF_SAMPLE_SIZE_IN_BYTES);
             float numSecondsInBuffer = totalNumSecondsWritten - totalNumSecondsPlayed;
 
             //Log.d(TAG, "totalNumSecondsWritten: " + totalNumSecondsWritten);
@@ -281,7 +278,7 @@ public class PlaybackManager {
                     Log.v(TAG, "Time to play FASTER.");
                     playFaster = true;
                     playSlower = false;
-                    line.setPlaybackRate((int)(audioFormat.SampleRate * FASTER_PLAYBACK_MULTIPLIER));
+                    line.setPlaybackRate((int)(afSampleRate * FASTER_PLAYBACK_MULTIPLIER));
                     playbackSpeed = PLAYBACK_SPEED_FASTER;
                     return playbackSpeed;
                 }
@@ -290,7 +287,7 @@ public class PlaybackManager {
                     Log.v(TAG, "Time to play SLOWER.");
                     playSlower = true;
                     playFaster = false;
-                    line.setPlaybackRate((int)(audioFormat.SampleRate * SLOWER_PLAYBACK_MULTIPLIER));
+                    line.setPlaybackRate((int)(afSampleRate * SLOWER_PLAYBACK_MULTIPLIER));
                     playbackSpeed = PLAYBACK_SPEED_SLOWER;
                     return playbackSpeed;
                 }
@@ -298,7 +295,7 @@ public class PlaybackManager {
                 if (playFaster) {
                     if (numSecondsInBuffer < desiredDelay) {
                         Log.v(TAG, "Time to play NORMAL speed (after playing faster)");
-                        line.setPlaybackRate((int)audioFormat.SampleRate);
+                        line.setPlaybackRate(afSampleRate);
                         playFaster = false;
                         playSlower = false;
                         playbackSpeed = PLAYBACK_SPEED_NORMAL;
@@ -307,7 +304,7 @@ public class PlaybackManager {
                 } else if (playSlower) {
                     if (numSecondsInBuffer > desiredDelay) {
                         Log.v(TAG, "Time to play NORMAL speed (after playing slower)");
-                        line.setPlaybackRate((int)audioFormat.SampleRate);
+                        line.setPlaybackRate(afSampleRate);
                         playFaster = false;
                         playSlower = false;
                         playbackSpeed = PLAYBACK_SPEED_NORMAL;
@@ -324,28 +321,22 @@ public class PlaybackManager {
 		this.desiredDelay = desiredDelay;
 	}
 	
-	public void createNewSpeakerLine(AudioFormatStruct af) {
+    public void createNewSpeakerLine(int sampleRate) {
         //Log.v(TAG, "createNewSpeakerLine ");
-		cleanUp();
-		audioFormat = new AudioFormatStruct(af.SampleRate, af.SampleSizeInBits, af.Channels, af.IsSigned, af.IsBigEndian);
+
+        cleanUp();
+        afSampleRate = sampleRate;
 
         // Derived from AudioFormat
-        afSampleSizeInBytes = af.SampleSizeInBits / 8; if (af.SampleSizeInBits % 8 != 0) { afSampleSizeInBytes++; }
-        afFrameSize = afSampleSizeInBytes * af.Channels;
-        audioDataMaxValidSize = (ADPL_AUDIO_DATA_AVAILABLE_SIZE - (ADPL_AUDIO_DATA_AVAILABLE_SIZE % afFrameSize));
-        packetRateMS = (int)(1.0 / (af.SampleRate * afFrameSize / audioDataMaxValidSize) * 1000);
+        packetRateMS = (int)(1.0 / ((float)afSampleRate * AF_FRAME_SIZE / AUDIO_DATA_MAX_VALID_SIZE) * 1000);
         burstModeTimeoutNS = (packetRateMS - 1) * 1000000;  // -1ms so we're not too close to the edge.
         Log.v(TAG, "burstModeTimeoutNS: " + burstModeTimeoutNS);
-        channelMultiplier = audioFormat.Channels == 1 ? 2 : 1;  // If mono data, *2 for stereo
-        audioDataShort = new short[ADPL_AUDIO_DATA_AVAILABLE_SIZE/audioFormat.SampleSizeInBytes*channelMultiplier];
 
-		
-		int desiredSpeakerLineBufferSizeInBytes = (int) (DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS * audioFormat.SampleRate * audioFormat.SampleSizeInBytes * audioFormat.Channels);
-        int encoding = audioFormat.SampleSizeInBytes == 2 ? AudioFormat.ENCODING_PCM_16BIT : AudioFormat.ENCODING_PCM_8BIT;
-        line = new AudioTrack(AudioManager.STREAM_MUSIC, (int)audioFormat.SampleRate, AudioFormat.CHANNEL_OUT_STEREO, encoding, desiredSpeakerLineBufferSizeInBytes, AudioTrack.MODE_STREAM);
-        //Log.v(TAG, "before line.play");
+        audioDataShort = new short[ADPL_AUDIO_DATA_AVAILABLE_SIZE / AF_SAMPLE_SIZE_IN_BYTES * 2];  // *2 for Stereo
+
+        int desiredSpeakerLineBufferSizeInBytes = (int) (DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS * afSampleRate * AF_SAMPLE_SIZE_IN_BYTES * AF_CHANNELS);
+        line = new AudioTrack(AudioManager.STREAM_MUSIC, afSampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, desiredSpeakerLineBufferSizeInBytes, AudioTrack.MODE_STREAM);
         line.play();  // ??? Here, right???
-        //Log.v(TAG, "after line.play");
 	}
 
 	public int getPlaybackSpeed() {
@@ -353,11 +344,11 @@ public class PlaybackManager {
 	}
 
     public float getNumAudioSecondsFromNumAudioBytes(long numBytes) {
-        return numBytes / audioFormat.SampleRate / afSampleSizeInBytes / audioFormat.Channels;
+        return numBytes / (float)afSampleRate / AF_SAMPLE_SIZE_IN_BYTES / AF_CHANNELS;
     }
 
     public long getNumAudioBytesFromNumAudioSeconds(float audioSeconds) {
-        return (long)(audioSeconds * audioFormat.SampleRate * afSampleSizeInBytes * audioFormat.Channels);
+        return (long)(audioSeconds * afSampleRate * AF_SAMPLE_SIZE_IN_BYTES * AF_CHANNELS);
     }
 
     public void addListener(PlaybackManagerListener listener) {
@@ -382,7 +373,7 @@ public class PlaybackManager {
         // Send Missing Packets (if any), though we must limit our request so that total paylostStorageList size (in secs) doesn't exceed "desiredDelay".
         //      If payloadStorageList is too big, we must cut it down to size here, then request whatever missingPayloads are left.
         if (payloadStorageList.getNumMissingPayloads() > 0) {
-            float payloadStorageListSizeSecs = getNumAudioSecondsFromNumAudioBytes(payloadStorageList.getTotalNumPayloads() * audioDataMaxValidSize);
+            float payloadStorageListSizeSecs = getNumAudioSecondsFromNumAudioBytes(payloadStorageList.getTotalNumPayloads() * AUDIO_DATA_MAX_VALID_SIZE);
 
             //Log.v(TAG, "======================= ");
             //Log.v(TAG, String.format("payloadStorageList.totalNumPayloads: %d", payloadStorageList.getTotalNumPayloads()));
@@ -393,7 +384,7 @@ public class PlaybackManager {
                 //Log.v(TAG, String.format("numSecsToCut: %f", numSecsToCut));
                 int numBytesToCut = (int)getNumAudioBytesFromNumAudioSeconds(numSecsToCut);
                 //Log.v(TAG, String.format("numBytesToCut: %d", numBytesToCut));
-                int numPayloadsToCut = numBytesToCut / audioDataMaxValidSize;
+                int numPayloadsToCut = numBytesToCut / AUDIO_DATA_MAX_VALID_SIZE;
                 //Log.v(TAG, String.format("numPayloadsToCut: %d", numPayloadsToCut));
                 if (numPayloadsToCut > 0) {
                     //Log.v(TAG, String.format("payloadStorageList.totalNumPayloads(Before): %d", payloadStorageList.getTotalNumPayloads()));
@@ -416,6 +407,16 @@ public class PlaybackManager {
             }
 
             notifyListenersOnMissingPacketRequestCreated(payloadStorageList.getMissingPayloads());
+        }
+    }
+
+    public void onAfSampleRateChanged (int sampleRate) {
+        // Verify that the sampleRate has indeed been changed
+        if (sampleRate != afSampleRate) {
+            Log.v(TAG, "onAfSampleRateChanged() to: " + sampleRate + " Hz. Creating new speaker line");
+            createNewSpeakerLine(sampleRate);
+        } else {
+            Log.w(TAG, "onAfSampleRateChanged() was called, but sampleRate is already set to its passed value: " + sampleRate + " Hz. NOT creating new speaker line.");
         }
     }
 }

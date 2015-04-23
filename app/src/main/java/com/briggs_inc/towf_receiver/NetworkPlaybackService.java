@@ -33,7 +33,7 @@ interface NetworkPlaybackServiceListener {
 	public void onReceivingAudioStatusChanged(boolean isReceivingAudio);
 	public void onPlaybackSpeedStatusChanged(int playbackSpeed);
 	public void onNpServiceFinished();
-	public void onAudioFormatChanged(AudioFormatStruct af);
+	//public void onAudioFormatChanged(AudioFormatStruct af);
     public void onMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPackets);
 }
 
@@ -106,7 +106,10 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 			streamPort = intent.getExtras().getInt(STREAM_PORT_KEY, 7770);
 			pbMan.addListener(this);
             pbMan.setDesiredDelay(intent.getExtras().getFloat(DESIRED_DELAY_KEY, 1.0f));
-            //pbMan.createNewSpeakerLine();
+            int sr = intent.getExtras().getInt(AF_SAMPLE_RATE_KEY, 0);
+            if (sr != 0) {
+                pbMan.createNewSpeakerLine(sr);
+            }
             pbMan.setSendMissingPacketRequestsChecked(intent.getExtras().getBoolean(SEND_MPRS_ENABLED_KEY, false));
 		} else {
 			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from it's intent. Unable to start service.");
@@ -310,10 +313,8 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         }
     }
 
-    public void onAudioFormatChanged(AudioFormatStruct af) {
-        Log.v(TAG, "onAudioFormatChanged() to: " + af.SampleRate + ". Creating new speaker line");
-        pbMan.createNewSpeakerLine(af);
-        isAudioFormatValid = true;  //??? Maybe later, check to make sure the format actually IS valid data.  //??? Do we need this anymore???
+    public void onAfSampleRateChanged (int sampleRate) {
+        pbMan.onAfSampleRateChanged(sampleRate);
     }
 
     public void addListener(NetworkPlaybackServiceListener listener) {

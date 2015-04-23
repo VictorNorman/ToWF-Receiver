@@ -31,7 +31,7 @@ import android.os.IBinder;
 import android.util.Log;
 
 interface InfoServiceListener {
-    public void onAudioFormatChanged(AudioFormatStruct af);
+    public void onAfSampleRateChanged(int sampleRate);
 	public void onLppListChanged(List<LangPortPair> lppList);
     public void onChatMsgReceived(String msg);
 	public void onServerStoppedStreaming();
@@ -65,7 +65,7 @@ public class InfoService extends IntentService {
 	
 	NetworkManager netMan;
 
-    AudioFormatStruct currAudioFormat;
+    int currSampleRate = 0;
 	List<LangPortPair> lppList = new ArrayList<>();
 
     public class CheckServerStoppedStreamingTask extends TimerTask {
@@ -148,21 +148,16 @@ public class InfoService extends IntentService {
                 if (payload instanceof PcmAudioFormatPayload) {
                     // === Audio Format ===
                     PcmAudioFormatPayload pcmAudioFormatPayload = (PcmAudioFormatPayload) payload;
-                    AudioFormatStruct plAudioFormat = pcmAudioFormatPayload.AudioFormat;
-                    if (!plAudioFormat.equals(currAudioFormat)) {
+                    int plSampleRate = pcmAudioFormatPayload.AfSampleRate;
+                    if (plSampleRate != currSampleRate) {
 
                         // Create new currAudioFormat
-                        currAudioFormat = new AudioFormatStruct(plAudioFormat.SampleRate, plAudioFormat.SampleSizeInBits, plAudioFormat.Channels, plAudioFormat.IsSigned, plAudioFormat.IsBigEndian);
+                        currSampleRate = plSampleRate;
 
                         // Print
-                        Log.i(TAG, "New Audio Format:");
-                        Log.i(TAG, " sampleRate: " + currAudioFormat.SampleRate);
-                        Log.i(TAG, " sampleSizeInBits: " + currAudioFormat.SampleSizeInBits);
-                        Log.i(TAG, " channels: " + currAudioFormat.Channels);
-                        Log.i(TAG, " isSigned: " + currAudioFormat.IsSigned);
-                        Log.i(TAG, " isBigEndian: " + currAudioFormat.IsBigEndian);
+                        Log.i(TAG, "New Sample Rate:" + currSampleRate + " Hz");
 
-                        notifyListenersOnAudioFormatChanged(currAudioFormat);
+                        notifyListenersOnAfSampleRateChanged(currSampleRate);
                     }
                 } else if (payload instanceof LangPortPairsPayload) {
 
@@ -239,24 +234,6 @@ public class InfoService extends IntentService {
 		super.onDestroy();
 	}
 
-    private void notifyListenersOnAudioFormatChanged(AudioFormatStruct af) {
-        for (InfoServiceListener listener : listeners) {
-            listener.onAudioFormatChanged(af);
-        }
-    }
-
-	private void notifyListenersOnLppListChanged(List<LangPortPair> lppList) {
-    	for (InfoServiceListener listener : listeners) {
-    		listener.onLppListChanged(lppList);
-    	}
-	}
-
-    private void notifyListenersOnChatMsgReceived(String msg) {
-        for (InfoServiceListener listener : listeners) {
-            listener.onChatMsgReceived(msg);
-        }
-    }
-	
 	public void sendClientListening(boolean isListening, int port) {
 		listeningPort = port;
 		
@@ -394,6 +371,24 @@ public class InfoService extends IntentService {
     private void notifyListenersOnEnableMPRSwitch() {
         for (InfoServiceListener listener : listeners) {
             listener.onEnableMPRSwitch();
+        }
+    }
+
+    private void notifyListenersOnAfSampleRateChanged(int sampleRate) {
+        for (InfoServiceListener listener : listeners) {
+            listener.onAfSampleRateChanged(sampleRate);
+        }
+    }
+
+    private void notifyListenersOnLppListChanged(List<LangPortPair> lppList) {
+        for (InfoServiceListener listener : listeners) {
+            listener.onLppListChanged(lppList);
+        }
+    }
+
+    private void notifyListenersOnChatMsgReceived(String msg) {
+        for (InfoServiceListener listener : listeners) {
+            listener.onChatMsgReceived(msg);
         }
     }
 

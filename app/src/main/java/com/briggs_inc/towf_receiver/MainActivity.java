@@ -78,7 +78,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     InfoService infoService;
     Boolean isBoundToInfoService = false;
 
-    AudioFormatStruct audioFormat = null;
+    int afSampleRate = 0;
     
     int streamPort;
     
@@ -100,11 +100,6 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			
 			npService.addListener(MainActivity.this);
 
-            if (audioFormat != null) {
-                npService.onAudioFormatChanged(audioFormat);
-            }
-
-			
 			updateGuiToReflectSystemState();
 		}
 	};
@@ -417,7 +412,9 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 	    streamPort = ((LangPortPair)languageSpinner.getSelectedItem()).Port;
     	npServiceIntent.putExtra(STREAM_PORT_KEY, streamPort);
     	npServiceIntent.putExtra(DESIRED_DELAY_KEY, Float.valueOf(desiredDelayLabel.getText().toString()));
-        //npServiceIntent.putExtra(AUDIO_FORMAT_KEY, currAudioFormat);
+        if (afSampleRate != 0) {
+            npServiceIntent.putExtra(AF_SAMPLE_RATE_KEY, afSampleRate);
+        }
         npServiceIntent.putExtra(SEND_MPRS_ENABLED_KEY, sendMissingPacketRequestsTB.isChecked());
     	startService(npServiceIntent);
     	
@@ -551,18 +548,25 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 		});
 	}
 
-	
-	@Override
-	public void onAudioFormatChanged(AudioFormatStruct af) {
-        Log.v(TAG, "onAudioFormatChanged(): " + af.SampleRate);
-        audioFormat = af;
+    @Override
+    public void onAfSampleRateChanged(final int sampleRate) {
+        Log.v(TAG, "onAfSampleRateChanged: " + sampleRate);
 
-        if (npService != null && isBoundToNpService) {
-            Log.v(TAG, "npService is NOT null. Telling npServer about AudioFormat change...");
-            npService.onAudioFormatChanged(af);
+        afSampleRate=sampleRate;
+
+        if(npService!=null&&isBoundToNpService) {
+            Log.v(TAG, "npService is NOT null. Telling npServer about afSampleRate change...");
+            npService.onAfSampleRateChanged(sampleRate);
         }
-	}
 
+        // Let debugResults know.
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                debugResults.setText(debugResults.getText() + String.format("Sample Rate: %d Hz", sampleRate) + "\n");
+            }
+        });
+    }
 
     private Boolean isServiceRunning(Class<?> serviceClass) {
 	    ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
