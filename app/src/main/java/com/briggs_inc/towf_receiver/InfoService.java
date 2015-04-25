@@ -34,6 +34,7 @@ interface InfoServiceListener {
     public void onAfSampleRateChanged(int sampleRate);
 	public void onLppListChanged(List<LangPortPair> lppList);
     public void onChatMsgReceived(String msg);
+    public void onRLSReceived();
 	public void onServerStoppedStreaming();
 	public void onServerStartedStreaming();
     public void onDisableMPRSwitch();
@@ -198,6 +199,8 @@ public class InfoService extends IntentService {
                 } else if (payload instanceof ChatMsgPayload) {
                     ChatMsgPayload cmPayload = (ChatMsgPayload) payload;
                     notifyListenersOnChatMsgReceived(cmPayload.Msg);
+                } else if (payload instanceof RequestListeningStatePayload) {
+                    notifyListenersOnRLSReceived();
 				} else {
                     Log.w(TAG, "Hmm, received a packet/payload, but is an unexpected or unknown type...");
                 }
@@ -389,6 +392,12 @@ public class InfoService extends IntentService {
     private void notifyListenersOnChatMsgReceived(String msg) {
         for (InfoServiceListener listener : listeners) {
             listener.onChatMsgReceived(msg);
+        }
+    }
+
+    private void notifyListenersOnRLSReceived() {
+        for (InfoServiceListener listener : listeners) {
+            listener.onRLSReceived();
         }
     }
 

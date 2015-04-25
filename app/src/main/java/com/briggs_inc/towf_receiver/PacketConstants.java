@@ -31,6 +31,7 @@ public class PacketConstants {
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_PCM_AUDIO_DATA_MISSING = 5;
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_ENABLE_MPRS = 6;
     public static final int DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG = 7;
+    public static final int DG_DATA_HEADER_PAYLOAD_TYPE_RLS = 8;  // Request Listening State
 
     // Audio Data Payload Constants
     public static final int ADPL_AUDIO_DATA_AVAILABLE_SIZE = UDP_DATA_PAYLOAD_SIZE - PcmAudioDataPayload.ADPL_HEADER_LENGTH;

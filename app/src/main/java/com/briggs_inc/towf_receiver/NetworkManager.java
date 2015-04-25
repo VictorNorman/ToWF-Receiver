@@ -24,6 +24,7 @@ public class NetworkManager {
     PcmAudioDataMissingPayload pcmAudioDataMissingPayload = new PcmAudioDataMissingPayload();
     EnableMprsPayload enableMprsPayload = new EnableMprsPayload();
     ChatMsgPayload cmPayload = new ChatMsgPayload();
+    RequestListeningStatePayload rlsPayload = new RequestListeningStatePayload();
 
 	class SendDatagramThread extends Thread {
 		DatagramPacket datagram;
@@ -99,6 +100,9 @@ public class NetworkManager {
             case DG_DATA_HEADER_PAYLOAD_TYPE_CHAT_MSG:
                 cmPayload.initWithDgData(dgData);
                 return cmPayload;
+            case DG_DATA_HEADER_PAYLOAD_TYPE_RLS:
+                rlsPayload.initWithDgData(dgData);
+                return rlsPayload;
 	    	default:
 	    		return null;
 		}

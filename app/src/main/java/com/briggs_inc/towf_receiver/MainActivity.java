@@ -619,6 +619,15 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     }
 
     @Override
+    public void onRLSReceived() {
+        if (isServiceRunning(NetworkPlaybackService.class)) {
+            infoService.sendClientListening(true, streamPort);  // We're listening
+        } else {
+            infoService.sendClientListening(false, streamPort);  // We're not listening
+        }
+    }
+
+    @Override
     public void onMissingPacketRequestCreated(List<PcmAudioDataPayload> missingPackets) {
         //Log.v(TAG, "onMissingPacketRequestCreated");
         if (isBoundToInfoService) {
