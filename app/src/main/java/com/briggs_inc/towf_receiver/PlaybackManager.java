@@ -107,6 +107,9 @@ public class PlaybackManager {
         lastPacketReceivedTimeNS = currPacketReceivedTimeNS;
 
         if (line != null) {
+            //int nativeSampleRate = line.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC);
+            //Log.v(TAG, "nativeSampleRate: " + nativeSampleRate);
+            // Note: nativeSampleRate is 44100 on my device, and probably on most devices
             SeqId currSeqId = pcmAudioDataPayload.SeqId;
 
             //Log.v(TAG, "---------------------");
