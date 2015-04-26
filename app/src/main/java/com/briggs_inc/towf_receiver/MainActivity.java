@@ -6,6 +6,10 @@ import java.util.List;
 import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
 import com.briggs_inc.towf_receiver.NetworkPlaybackService.NpServiceBinder;
 
+import android.annotation.TargetApi;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.os.Build;
 import android.support.v7.app.ActionBarActivity;
 import android.app.ActivityManager;
@@ -14,13 +18,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -79,6 +81,11 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     Boolean isBoundToInfoService = false;
 
     int streamPort;
+
+    // Drip
+    private SoundPool dripSoundPool;
+    private int dripSound;
+    boolean dripLoaded = false;
     
     private ServiceConnection npServiceConnection = new ServiceConnection() {
 		
@@ -206,6 +213,18 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         	Log.v(TAG, "Starting INFO Service");
         	startService(infoServiceIntent);
         }
+
+        // Setup Drip Sound
+        //this.setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        // Load the sound
+        buildSoundPool();
+        dripSoundPool.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {
+            @Override
+            public void onLoadComplete(SoundPool soundPool, int sampleId, int status) {
+                dripLoaded = true;
+            }
+        });
+        dripSound = dripSoundPool.load(this, R.raw.drip, 1);
     }
 	
 	private void updateLblPlaybackSpeed(int playbackSpeed) {
@@ -600,6 +619,9 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 
             // Send msg to Server
             infoService.sendChatMsg(msg);
+
+            // Beep
+            playDripSound();
         }
 
 		// Hide soft keyboard when "Send" (button or keyboard key) is clicked
@@ -616,6 +638,8 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
                 debugResults.setText(debugResults.getText().toString() + "Server: " + msg + "\n");
             }
         });
+        // Beep (drip)
+        playDripSound();
     }
 
     @Override
@@ -654,5 +678,29 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
                 sendMissingPacketRequestsTB.setEnabled(true);
             }
         });
+    }
+
+    @SuppressWarnings("deprecation")
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void buildSoundPool() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            AudioAttributes driopAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
+
+            dripSoundPool = new SoundPool.Builder()
+                    .setMaxStreams(1)
+                    .setAudioAttributes(driopAttributes)
+                    .build();
+        } else {
+            dripSoundPool = new SoundPool(1, AudioManager.STREAM_MUSIC, 0);
+        }
+    }
+
+    public void playDripSound() {
+        if (dripLoaded) {
+            dripSoundPool.play(dripSound, 1, 1, 1, 0, 1f);
+        }
     }
 }
