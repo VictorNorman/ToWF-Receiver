@@ -24,16 +24,17 @@ public class PlaybackManager {
 	public static final int PLAYBACK_SPEED_NORMAL = 0;
 	public static final int PLAYBACK_SPEED_FASTER = 1;
 	public static final int PLAYBACK_SPEED_SLOWER = 2;
+    public static final int PLAYBACK_SPEED_SUPER_FAST = 3;
 	
-	public static final float FASTER_PLAYBACK_MULTIPLIER = 1.2F;
-	public static final float SLOWER_PLAYBACK_MULTIPLIER = 0.8F;
+	public static final float FASTER_PLAYBACK_MULTIPLIER = 1.1F;
+	public static final float SLOWER_PLAYBACK_MULTIPLIER = 0.9F;
 
     int afSampleRate = 0;
 	AudioTrack line;
 	
 	private short audioDataShort[]; // For a line setup as: AudioFormat.ENCODING_PCM_16BIT
     private SeqId lastQueuedSeqId;
-	private long totalNumSamplesWrittenToBuffer;
+	private long totalNumShortsWrittenToBuffer;
     private float desiredDelay;
 	private Boolean playFaster = false;
 	private Boolean playSlower = false;
@@ -52,6 +53,7 @@ public class PlaybackManager {
     long burstModeTimeoutNS;
 
 	private int playbackSpeed = PLAYBACK_SPEED_NORMAL;
+    boolean isSuperFastPlayback = true;
     private long lastPacketReceivedTimeNS;
 
     public PlaybackManager(int sampleRate, float desiredDelay, boolean isSendMPRsChecked) {
@@ -243,10 +245,9 @@ public class PlaybackManager {
         //        audioDataShort[audioDataAllocatedBytes-4], audioDataShort[audioDataAllocatedBytes-3] , audioDataShort[audioDataAllocatedBytes-2], audioDataShort[audioDataAllocatedBytes-1]));
 
         // Write audio data to Speaker (line) (Assuming sampleSizeInBytes == 2)
-        int shortsWritten;
-        shortsWritten = line.write(audioDataShort, 0, audioDataAllocatedBytes);
+        int shortsWritten = line.write(audioDataShort, 0, audioDataAllocatedBytes);
         //Log.v(TAG, String.format("shortsWritten: %d", shortsWritten));
-        totalNumSamplesWrittenToBuffer += shortsWritten / 2;  // 2 for Stereo
+        totalNumShortsWrittenToBuffer += shortsWritten;
 
         lastQueuedSeqId = payload.SeqId;
     }
@@ -270,8 +271,8 @@ public class PlaybackManager {
 		// Check if playback should be changed to Faster, Slower, or Normal speed - or keep it unchanged
 
         if (line != null) {  // only if we have a line to work with
-            float totalNumSecondsWritten = getNumAudioSecondsFromNumAudioBytes(totalNumSamplesWrittenToBuffer * AF_SAMPLE_SIZE_IN_BYTES);
-            float totalNumSecondsPlayed = getNumAudioSecondsFromNumAudioBytes(line.getPlaybackHeadPosition() * AF_SAMPLE_SIZE_IN_BYTES);
+            float totalNumSecondsWritten = getNumAudioSecondsFromNumMonoAudioBytes(totalNumShortsWrittenToBuffer * AF_SAMPLE_SIZE_IN_BYTES / 2);  // /2 for Stereo
+            float totalNumSecondsPlayed = getNumAudioSecondsFromNumMonoAudioBytes(line.getPlaybackHeadPosition() * AF_SAMPLE_SIZE_IN_BYTES);  // Note: getPlaybackHeadPosition() is in frames.
             float numSecondsInBuffer = totalNumSecondsWritten - totalNumSecondsPlayed;
 
             //Log.d(TAG, "totalNumSecondsWritten: " + totalNumSecondsWritten);
@@ -280,11 +281,19 @@ public class PlaybackManager {
 
             if (numSecondsInBuffer > desiredDelay + desiredDelay / 2.0) {
                 if (!playFaster) {
-                    Log.v(TAG, "Time to play FASTER.");
+                    if (isSuperFastPlayback) {
+                        isSuperFastPlayback = false;  // Only gets reset back to true in createNewSpeakerLine()
+                        Log.v(TAG, "Time to play SUPER FAST.");
+                        line.setPlaybackRate(line.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC) * 2);  // Native * 2 is the stated MAX playback rate. (usually 44,100 * 2)
+                        playbackSpeed = PLAYBACK_SPEED_SUPER_FAST;
+                    } else {
+                        Log.v(TAG, "Time to play FASTER.");
+                        line.setPlaybackRate((int)(afSampleRate * FASTER_PLAYBACK_MULTIPLIER));
+                        playbackSpeed = PLAYBACK_SPEED_FASTER;
+                    }
                     playFaster = true;
                     playSlower = false;
-                    line.setPlaybackRate((int)(afSampleRate * FASTER_PLAYBACK_MULTIPLIER));
-                    playbackSpeed = PLAYBACK_SPEED_FASTER;
+
                     return playbackSpeed;
                 }
             } else if (numSecondsInBuffer < desiredDelay - desiredDelay / 2.0) {
@@ -327,7 +336,7 @@ public class PlaybackManager {
 	}
 	
     public void createNewSpeakerLine(int sampleRate) {
-        //Log.v(TAG, "createNewSpeakerLine ");
+        Log.v(TAG, "createNewSpeakerLine ");
 
         cleanUp();
         afSampleRate = sampleRate;
@@ -341,6 +350,19 @@ public class PlaybackManager {
 
         int desiredSpeakerLineBufferSizeInBytes = (int) (DESIRED_SPEAKER_LINE_BUFFER_SIZE_SECS * afSampleRate * AF_SAMPLE_SIZE_IN_BYTES * 2);  // *2 for Stereo
         line = new AudioTrack(AudioManager.STREAM_MUSIC, afSampleRate, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, desiredSpeakerLineBufferSizeInBytes, AudioTrack.MODE_STREAM);
+
+        // Fill the buffer immediately with empty data
+        byte zeroData[] = new byte[desiredSpeakerLineBufferSizeInBytes];
+        int numShortsWritten = line.write(zeroData, 0, zeroData.length);
+        if (numShortsWritten != zeroData.length) {
+            // If we see the following warning, we probably need a while loop here.
+            Log.w(TAG, String.format("WARNING: numShortWritten(%d) != zeroData.length(%d). They should be.", numShortsWritten, zeroData.length));
+        }
+        Log.v(TAG, "numShortsWritten: " + numShortsWritten);
+        totalNumShortsWrittenToBuffer += numShortsWritten / 2;  // 2 for Stereo
+        isSuperFastPlayback = true;  // Play as fast as possible, because there's 2.5 secs of just 'empty audio' to get through.
+
+        // Start Playing the Audio
         line.play();  // Unfortunately, it appears that the buffer must be completely filled before playback even starts. (After which, we will run at 1.2x until we get to our desiredDelay.) [but that means we can put line.play() here, as long as we start filling the buffer before some timeout.]
 	}
 
@@ -348,7 +370,7 @@ public class PlaybackManager {
 		return playbackSpeed;
 	}
 
-    public float getNumAudioSecondsFromNumAudioBytes(long numBytes) {
+    public float getNumAudioSecondsFromNumMonoAudioBytes(long numBytes) {
         return numBytes / (float)afSampleRate / AF_SAMPLE_SIZE_IN_BYTES / AF_CHANNELS;
     }
 
@@ -378,7 +400,7 @@ public class PlaybackManager {
         // Send Missing Packets (if any), though we must limit our request so that total paylostStorageList size (in secs) doesn't exceed "desiredDelay".
         //      If payloadStorageList is too big, we must cut it down to size here, then request whatever missingPayloads are left.
         if (payloadStorageList.getNumMissingPayloads() > 0) {
-            float payloadStorageListSizeSecs = getNumAudioSecondsFromNumAudioBytes(payloadStorageList.getTotalNumPayloads() * AUDIO_DATA_MAX_VALID_SIZE);
+            float payloadStorageListSizeSecs = getNumAudioSecondsFromNumMonoAudioBytes(payloadStorageList.getTotalNumPayloads() * AUDIO_DATA_MAX_VALID_SIZE);
 
             //Log.v(TAG, "======================= ");
             //Log.v(TAG, String.format("payloadStorageList.totalNumPayloads: %d", payloadStorageList.getTotalNumPayloads()));

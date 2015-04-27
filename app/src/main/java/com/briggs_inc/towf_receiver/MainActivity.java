@@ -232,8 +232,11 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			lblPlaybackSpeed.setText(String.format("%1.1fx", PlaybackManager.FASTER_PLAYBACK_MULTIPLIER));
 			lblPlaybackSpeed.setTextColor(Color.BLUE);
 		} else if (playbackSpeed == PlaybackManager.PLAYBACK_SPEED_SLOWER) {
-			lblPlaybackSpeed.setText(String.format("%1.1fx", PlaybackManager.SLOWER_PLAYBACK_MULTIPLIER));
-			lblPlaybackSpeed.setTextColor(Color.YELLOW);
+            lblPlaybackSpeed.setText(String.format("%1.1fx", PlaybackManager.SLOWER_PLAYBACK_MULTIPLIER));
+            lblPlaybackSpeed.setTextColor(Color.YELLOW);
+        } else if (playbackSpeed == PlaybackManager.PLAYBACK_SPEED_SUPER_FAST) {
+            lblPlaybackSpeed.setText("Fast");
+            lblPlaybackSpeed.setTextColor(Color.RED);
 		} else {
 			lblPlaybackSpeed.setText("1x");
 			lblPlaybackSpeed.setTextColor(Color.rgb(0x00, 0x80, 0x00));
