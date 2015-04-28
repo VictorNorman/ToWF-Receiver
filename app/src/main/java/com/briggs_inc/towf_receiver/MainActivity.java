@@ -7,6 +7,7 @@ import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
 import com.briggs_inc.towf_receiver.NetworkPlaybackService.NpServiceBinder;
 
 import android.annotation.TargetApi;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
@@ -49,6 +50,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 
     // GUI-related
 	TextView wifiConnection;
+    TextView versionLabel;
 	TextView waitingForServerLabel;
 	LinearLayout streamViewLayout;
 	LinearLayout listeningViewLayout;
@@ -144,6 +146,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         
         // GUI-related
         wifiConnection = (TextView) findViewById(R.id.wifiConnection);
+        versionLabel = (TextView) findViewById(R.id.versionLabel);
         waitingForServerLabel = (TextView) findViewById(R.id.waitingForServerLabel);
         streamViewLayout = (LinearLayout) findViewById(R.id.streamViewLayout);
         listeningViewLayout = (LinearLayout) findViewById(R.id.listeningViewLayout);
@@ -225,6 +228,14 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
             }
         });
         dripSound = dripSoundPool.load(this, R.raw.drip, 1);
+
+        // Set Version text in GUI
+        try {
+            versionLabel.setText("(v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName + ")");
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+            // And don't change versionLabel - just leave it as is: (v0.0)
+        }
     }
 	
 	private void updateLblPlaybackSpeed(int playbackSpeed) {
