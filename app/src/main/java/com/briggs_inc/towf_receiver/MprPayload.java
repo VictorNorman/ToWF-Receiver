@@ -1,6 +1,7 @@
 package com.briggs_inc.towf_receiver;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.briggs_inc.towf_receiver.PacketConstants.*;
@@ -48,6 +49,7 @@ public class MprPayload extends Payload {
     }
 
     public byte[] getDgDataPayloadBytes() {
-        return dgDataPayload;
+        int payloadLength = MPRPL_NUM_MISSING_PACKETS_LENGTH + MPRPL_RSVD0_LENGTH + MPRPL_PORT_LENGTH + (MPRPL_PACKET_SEQID_LENGTH * this.MissingPackets.size());
+        return Arrays.copyOfRange(dgDataPayload, 0, payloadLength);
     }
 }

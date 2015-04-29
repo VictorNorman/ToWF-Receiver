@@ -22,6 +22,7 @@ public class ClientListeningPayload extends Payload {
     public static final int CLPL_HW_MODEL_STR_LENGTH = 16;
     public static final int CLPL_USERS_NAME_START = 44;
     public static final int CLPL_USERS_NAME_LENGTH = 32;
+    public static final int CLPL_PAYLOAD_LENGTH = CLPL_IS_LISTENING_LENGTH + CLPL_OS_TYPE_LENGTH + CLPL_PORT_LENGTH + CLPL_OS_VERSION_STR_LENGTH + CLPL_HW_MANUFACTURER_STR_LENGTH + CLPL_HW_MODEL_STR_LENGTH + CLPL_USERS_NAME_LENGTH;
     
     // "Struct" Variables
     public Boolean IsListening;
@@ -34,7 +35,7 @@ public class ClientListeningPayload extends Payload {
     public String HwModel;
     public String UsersName;
     
-    byte dgDataPayload[] = new byte[UDP_DATA_PAYLOAD_SIZE];
+    byte dgDataPayload[] = new byte[CLPL_PAYLOAD_LENGTH];
     
     public ClientListeningPayload(Boolean isListening, int osType, int port, String macAddress, int ipAddress, String osVersion, String hwManufacturer, String hwModel, String usersName) {
 		this.IsListening = isListening;

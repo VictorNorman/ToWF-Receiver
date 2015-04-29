@@ -1,5 +1,7 @@
 package com.briggs_inc.towf_receiver;
 
+import java.util.Arrays;
+
 import static com.briggs_inc.towf_receiver.PacketConstants.DG_DATA_HEADER_LENGTH;
 import static com.briggs_inc.towf_receiver.PacketConstants.UDP_DATA_PAYLOAD_SIZE;
 
@@ -35,6 +37,7 @@ public class ChatMsgPayload extends Payload {
     }
 
     public byte[] getDgDataPayloadBytes() {
-        return dgDataPayload;
+        int payloadLength = this.Msg.length() + 1;  // +1 for the null-terminator
+        return Arrays.copyOfRange(dgDataPayload, 0, payloadLength);
     }
 }

@@ -276,7 +276,7 @@ public class InfoService extends IntentService {
 		System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
 		
 		// Build our datagram packet & send it.
-		DatagramPacket clDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
+        DatagramPacket clDatagramPacket = new DatagramPacket(dgData, DG_DATA_HEADER_LENGTH + dgDataPayload.length, serverInetAddress, serverPort);
 		
 		try {
 			netMan.sendDatagram(clDatagramPacket);
@@ -312,7 +312,7 @@ public class InfoService extends IntentService {
             System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
 
             // Build our datagram packet & send it.
-            DatagramPacket mprDatagramPacket = new DatagramPacket(dgData, UDP_DATA_SIZE, serverInetAddress, serverPort);
+            DatagramPacket mprDatagramPacket = new DatagramPacket(dgData, DG_DATA_HEADER_LENGTH + dgDataPayload.length, serverInetAddress, serverPort);
 
             try {
                 netMan.sendDatagram(mprDatagramPacket);
@@ -341,8 +341,7 @@ public class InfoService extends IntentService {
         System.arraycopy(dgDataPayload, 0, dgData, DG_DATA_HEADER_LENGTH, dgDataPayload.length);
 
         // Build our datagram packet & send it.
-        int dataLength = DG_DATA_HEADER_LENGTH + msg.length() + 1;  // +1 for the null-terminator
-        DatagramPacket cmDatagramPacket = new DatagramPacket(dgData, dataLength, serverInetAddress, serverPort);
+        DatagramPacket cmDatagramPacket = new DatagramPacket(dgData, DG_DATA_HEADER_LENGTH + dgDataPayload.length, serverInetAddress, serverPort);
 
         try {
             netMan.sendDatagram(cmDatagramPacket);
