@@ -32,6 +32,7 @@ import android.util.Log;
 
 interface InfoServiceListener {
     public void onAfSampleRateChanged(int sampleRate);
+    public void onServerVersionChanged(String serverVersion);
 	public void onLppListChanged(List<LangPortPair> lppList);
     public void onChatMsgReceived(String msg);
     public void onRLSReceived();
@@ -67,6 +68,7 @@ public class InfoService extends IntentService {
 	NetworkManager netMan;
 
     int afSampleRate = 0;
+    String serverVersion = "";
 	List<LangPortPair> lppList = new ArrayList<>();
 
     public class CheckServerStoppedStreamingTask extends TimerTask {
@@ -168,6 +170,15 @@ public class InfoService extends IntentService {
                     serverInetAddress = datagram.getAddress();
                     serverPort = datagram.getPort();
 
+                    // Server Version check
+                    //Log.v(TAG, "serverVersion: " + serverVersion);
+                    //Log.v(TAG, "lppPayload.ServerVersion: " + lppPayload.ServerVersion);
+                    if (!serverVersion.equalsIgnoreCase(lppPayload.ServerVersion)) {
+                        serverVersion = lppPayload.ServerVersion;
+                        notifyListenersOnServerVersionChanged(serverVersion);
+                    }
+
+                    // Lpp List Check
                     if (!isLppListsSame(lppList, lppPayload.LppList)) {
                         // Lists are not the same, build from scratch
                         lppList.clear();
@@ -380,6 +391,12 @@ public class InfoService extends IntentService {
     private void notifyListenersOnAfSampleRateChanged(int sampleRate) {
         for (InfoServiceListener listener : listeners) {
             listener.onAfSampleRateChanged(sampleRate);
+        }
+    }
+
+    private void notifyListenersOnServerVersionChanged (String serverVersion) {
+        for (InfoServiceListener listener : listeners) {
+            listener.onServerVersionChanged(serverVersion);
         }
     }
 

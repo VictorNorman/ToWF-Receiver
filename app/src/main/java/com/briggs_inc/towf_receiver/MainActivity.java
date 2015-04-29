@@ -7,6 +7,8 @@ import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
 import com.briggs_inc.towf_receiver.NetworkPlaybackService.NpServiceBinder;
 
 import android.annotation.TargetApi;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
@@ -88,6 +90,8 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     private SoundPool dripSoundPool;
     private int dripSound;
     boolean dripLoaded = false;
+
+    String appVersionStr = "0.0";
     
     private ServiceConnection npServiceConnection = new ServiceConnection() {
 		
@@ -229,13 +233,16 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         });
         dripSound = dripSoundPool.load(this, R.raw.drip, 1);
 
-        // Set Version text in GUI
+        // Get App Version String (e.g: 3.0)
         try {
-            versionLabel.setText("(v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName + ")");
+            appVersionStr = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
-            // And don't change versionLabel - just leave it as is: (v0.0)
+            appVersionStr = "0.0";
         }
+
+        // Set Version text in GUI
+        versionLabel.setText("(v" + appVersionStr + ")");
     }
 	
 	private void updateLblPlaybackSpeed(int playbackSpeed) {
@@ -529,9 +536,51 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 		debugResults.append(msg + "\n");
 	}
 
+    @Override
+    public void onServerVersionChanged(final String serverVersion) {
+        Log.v(TAG, "onServerVersionChanged(): " + serverVersion);
+
+        // Check that received Server's version matches our version (only check the first number). If not, alert the user.
+        String serverMajorVer = serverVersion.split("\\.")[0];
+        String appMajorVer = appVersionStr.split("\\.")[0];
+        Log.d(TAG, "serverMajorVer: " + serverMajorVer);
+        Log.d(TAG, "appMajorVer: " + appMajorVer);
+        final String todoMsg;
+
+
+        if (!serverMajorVer.equalsIgnoreCase(appMajorVer)) {
+            if (Integer.valueOf(appMajorVer) < Integer.valueOf(serverMajorVer)) {
+                todoMsg = "You need to update this app to the latest version";
+            } else {
+                todoMsg = "The Server software must be updated to the latest version";
+            }
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Versions not Compatible!")
+                            .setMessage(String.format("This App's Version (%s) and the Server's version (%s) are not compatible. The Major version (1st number) must be the same.\n\n%s", appVersionStr, serverVersion, todoMsg))
+                            .setNeutralButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // do nothing.
+                                }
+                            })
+                            .setIcon(android.R.drawable.ic_dialog_alert);
+
+
+                    AlertDialog alert = builder.create();
+                    alert.show();
+                }
+            });
+        }
+    }
+
 	@Override
 	public void onLppListChanged(List<LangPortPair> lppList) {
 		Log.v(TAG, "onLppListChanged()");
+
 		this.lppList.clear();
 		this.lppList.addAll(lppList);
 		
