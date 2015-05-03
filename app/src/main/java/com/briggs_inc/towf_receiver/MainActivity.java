@@ -251,7 +251,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 			lblPlaybackSpeed.setTextColor(Color.BLUE);
 		} else if (playbackSpeed == PlaybackManager.PLAYBACK_SPEED_SLOWER) {
             lblPlaybackSpeed.setText(String.format("%1.1fx", PlaybackManager.SLOWER_PLAYBACK_MULTIPLIER));
-            lblPlaybackSpeed.setTextColor(Color.YELLOW);
+            lblPlaybackSpeed.setTextColor(Color.rgb(0xB0, 0xB0, 0x00));  // Yellow
         } else if (playbackSpeed == PlaybackManager.PLAYBACK_SPEED_SUPER_FAST) {
             lblPlaybackSpeed.setText("Fast");
             lblPlaybackSpeed.setTextColor(Color.RED);
@@ -263,7 +263,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
 
 	private void updateLblReceivingAudio(Boolean isReceivingAudio) {
 		if (isReceivingAudio) {
-			lblReceivingAudio.setTextColor(Color.rgb(0x00, 0x80, 0x00));
+			lblReceivingAudio.setTextColor(Color.rgb(0x00, 0x80, 0x00));  // Green
 		} else {
 			lblReceivingAudio.setTextColor(Color.LTGRAY);
 		}
@@ -646,14 +646,6 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
             Log.v(TAG, "npService is NOT null. Telling npServer about afSampleRate change...");
             npService.onAfSampleRateChanged(sampleRate);
         }
-
-        // Let debugResults know.
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                debugResults.setText(debugResults.getText() + String.format("Sample Rate: %d Hz", sampleRate) + "\n");
-            }
-        });
     }
 
     private Boolean isServiceRunning(Class<?> serviceClass) {
