@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.briggs_inc.towf_receiver"
     android:versionCode="6"
-    android:versionName="3.2d" >
+    android:versionName="3.2" >
 
     <uses-sdk
         android:minSdkVersion="10"
