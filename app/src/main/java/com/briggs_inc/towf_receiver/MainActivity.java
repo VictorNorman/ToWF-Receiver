@@ -178,7 +178,9 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         sendMissingPacketRequestsTB.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                npService.setSendMissingPacketRequestsChecked(isChecked);
+                if (isBoundToNpService) {
+					npService.setSendMissingPacketRequestsChecked(isChecked);
+				}
             }
         });
         chatMsgTF.setOnEditorActionListener(new TextView.OnEditorActionListener() {
