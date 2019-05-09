@@ -6,6 +6,7 @@ import java.util.List;
 import com.briggs_inc.towf_receiver.InfoService.InfoServiceBinder;
 import com.briggs_inc.towf_receiver.NetworkPlaybackService.NpServiceBinder;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -14,7 +15,7 @@ import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.os.Build;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningServiceInfo;
 import android.content.ComponentName;
@@ -26,6 +27,8 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -46,9 +49,12 @@ import android.widget.ToggleButton;
 import static com.briggs_inc.towf_receiver.MiscConstants.*;
 
 
-public class MainActivity extends ActionBarActivity implements NetworkPlaybackServiceListener, InfoServiceListener {
+public class MainActivity extends AppCompatActivity implements NetworkPlaybackServiceListener, InfoServiceListener {
 
     private static final String TAG = "MainActivity";
+    private static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 0;
+    private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 1;
+	private static final int MY_PERMISSIONS_REQUEST_FG_SERVICE = 2;
 
     // GUI-related
 	TextView wifiConnection;
@@ -175,6 +181,28 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         npServiceIntent = new Intent(this, NetworkPlaybackService.class);
         infoServiceIntent = new Intent(this, InfoService.class);
 
+		// Permissions
+		if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)
+				!= PackageManager.PERMISSION_GRANTED) {
+			ActivityCompat.requestPermissions(MainActivity.this,
+					new String[]{ Manifest.permission.ACCESS_FINE_LOCATION },
+					MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+		}
+		if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_CONTACTS)
+				!= PackageManager.PERMISSION_GRANTED) {
+			Log.v(TAG, "NO PERMISSION FOR READ_CONTACTS");
+			ActivityCompat.requestPermissions(MainActivity.this,
+					new String[]{ Manifest.permission.READ_CONTACTS },
+					MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+		}
+		if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.FOREGROUND_SERVICE)
+				!= PackageManager.PERMISSION_GRANTED) {
+			Log.v(TAG, "NO PERMISSION FOR FOREGROUND_SERVICE");
+			ActivityCompat.requestPermissions(MainActivity.this,
+					new String[]{ Manifest.permission.FOREGROUND_SERVICE },
+					MY_PERMISSIONS_REQUEST_FG_SERVICE);
+		}
+
         sendMissingPacketRequestsTB.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -220,7 +248,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         // Start it only if it's not already existing
         if (!isServiceRunning(InfoService.class)) {
         	Log.v(TAG, "Starting INFO Service");
-        	startService(infoServiceIntent);
+        	startForegroundService(infoServiceIntent);
         }
 
         // Setup Drip Sound
@@ -246,6 +274,42 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         // Set Version text in GUI
         versionLabel.setText("(v" + appVersionStr + ")");
     }
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		switch (requestCode) {
+			case MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION: {
+				// If request is cancelled, the result arrays are empty.
+				if (grantResults.length > 0
+						&& grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+					Log.v(TAG, "*************** PERMISSION GRANTED for ACCESS_FINE_LOCATION! ************");
+				} else {
+					Log.v(TAG, "**************** NO PERMISSION for ACCESS_FINE_LOCATION! ************");
+				}
+				return;
+			}
+			case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
+				// If request is cancelled, the result arrays are empty.
+				if (grantResults.length > 0
+						&& grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+					Log.v(TAG, "*********** PERMISSION GRANTED for READ_CONTACTS! **********");
+				} else {
+					Log.v(TAG, "************ NO PERMISSION for READ_CONTACTS!! ************");
+				}
+				return;
+			}
+			case MY_PERMISSIONS_REQUEST_FG_SERVICE: {
+				// If request is cancelled, the result arrays are empty.
+				if (grantResults.length > 0
+						&& grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+					Log.v(TAG, "*********** PERMISSION GRANTED for FG_SERVICE! **********");
+				} else {
+					Log.v(TAG, "************ NO PERMISSION for FG_SERVICE!! ************");
+				}
+				return;
+			}
+		}
+	}
 	
 	private void updateLblPlaybackSpeed(int playbackSpeed) {
 		if (playbackSpeed == PlaybackManager.PLAYBACK_SPEED_FASTER) {
@@ -314,7 +378,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
         if (Build.FINGERPRINT.contains("generic")) {
             wifiConnection.setText("Tercume");  // Just to make screenshots look nicer from the Emulator.
         } else {
-            WifiManager wifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+            WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
             WifiInfo wifiInfo = wifiManager.getConnectionInfo();
             wifiConnection.setText(wifiInfo.getSSID());
         }
@@ -380,20 +444,23 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
     	super.onStop();
     	
     	// NetPlay Service (Unbind)
-    	if (isBoundToNpService) {
+/*    	if (isBoundToNpService) {
     		npService.removeListener(this);
+    		Log.v(TAG, "unbinding NetPlayService");
     		unbindService(npServiceConnection);
     		npService = null;  // ???
     		isBoundToNpService = false;
     	}
-    	
+
     	//INFO Service (Unbind)
     	if (isBoundToInfoService) {
     		infoService.removeListener(this);
+			Log.v(TAG, "unbinding InfoService");
     		unbindService(infoServiceConnection);
     		infoService = null;  // ???
     		isBoundToInfoService = false;
     	}
+*/    	Log.v(TAG, "done with onStop()");
     }
     
     @Override
@@ -460,7 +527,7 @@ public class MainActivity extends ActionBarActivity implements NetworkPlaybackSe
             npServiceIntent.putExtra(AF_SAMPLE_RATE_KEY, infoService.getAfSampleRate());
         }
         npServiceIntent.putExtra(SEND_MPRS_ENABLED_KEY, sendMissingPacketRequestsTB.isChecked());
-    	startService(npServiceIntent);
+    	startForegroundService(npServiceIntent);
     	
     	// Bind to the NetworkPlayback Service
     	bindService(npServiceIntent, npServiceConnection, Context.BIND_AUTO_CREATE);

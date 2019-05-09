@@ -20,14 +20,20 @@ import java.util.TimerTask;
 
 import android.app.IntentService;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Build;
 
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Log;
 
 interface InfoServiceListener {
@@ -71,12 +77,17 @@ public class InfoService extends IntentService {
     String serverVersion = "";
 	List<LangPortPair> lppList = new ArrayList<>();
 
+	WifiManager.WifiLock wifiLock;
+    PowerManager.WakeLock wakeLock;
+
+
     public class CheckServerStoppedStreamingTask extends TimerTask {
         @Override
         public void run() {
             if (!receivedAnLppPacket) {
                 if (isServerStreaming) {
                     isServerStreaming = false;
+                    Log.v(TAG, "CheckServiceStoppedStreaming: ***** TRUE *****");
                     notifyListenersOnServerStoppedStreaming();
                 }
             }
@@ -105,13 +116,53 @@ public class InfoService extends IntentService {
 	public void setIsRunning(Boolean b) {
 		isRunning = b;
 	}
+
 	
 	//@Override
 	protected void onHandleIntent(Intent intent) {
 		Log.v(TAG, "onHandleIntent()");
 
+		// Notification stuff -- required for services (https://developer.android.com/guide/components/services)
+        String NOTIFICATION_CHANNEL_ID = "com.mbriggs.towf_android";
+        String channelName = "ToWF Info Background Service";
+        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
+        chan.setLightColor(Color.BLUE);
+        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        assert manager != null;
+        manager.createNotificationChannel(chan);
+
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent =
+                PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        Notification notification = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+                        .setContentTitle("ToWF")
+                        .setContentText("Communicating with server")
+                        .setSmallIcon(android.R.drawable.ic_media_play)
+                        .setContentIntent(pendingIntent)
+                        .setTicker("ToWF Communicating with server")
+                        .build();
+
+        startForeground(NETWORK_INFO_SERVICE_FG_NOTIFICATION_ID, notification);
+        Log.v(TAG, "onHandleIntent() started notification");
+
+
+        // Wi-Fi Lock
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "ToWF:WifiLock_for_InfoService");
+        Log.v(TAG, "Acquiring Wi-Fi Lock");
+        wifiLock.acquire();
+        // Wake Lock - NOTE: not sure if this is necessary or not. Not needed on my Atrix 4G, but maybe other devices will need this lock.
+        PowerManager pm = (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Towf:WakeLock");  // PARTIAL_WAKE_LOCK => CPU will always run, no matter what screen status is.
+        Log.v(TAG, "Acquiring Wake Lock");
+        wakeLock.acquire();
+
+        Log.v(TAG, "onHandleIntent() starting checkserver task");
         serverStreamingCheckTimer.schedule(new CheckServerStoppedStreamingTask(), 1000, SERVER_STREAMING_CHECK_TIMER_INTERVAL_MS);
 
+
+        Log.v(TAG, "onHandleIntent() creatng network manager with port " + INFO_PORT_NUMBER);
 		// Create our instance of NetworkManager
      	try {
      		netMan = new NetworkManager(INFO_PORT_NUMBER, INFO_PORT_RECEIVE_TIMEOUT_MS);
@@ -129,7 +180,9 @@ public class InfoService extends IntentService {
                 if (datagram == null) {
                     continue;  // to next iteration of while loop
                 }
+                Log.v(TAG, "got datagram");
 			} catch (SocketTimeoutException ex) {
+                Log.v(TAG, "Socket Timeout Exception! message: " + ex.getMessage());
 				continue;  // to next while loop iteration
 			} catch (SocketException ex) {  // for .setSoTimeout() 
 				// Probably something serious that will keep recurring, so exit this Service
@@ -244,14 +297,26 @@ public class InfoService extends IntentService {
 		
 		// Notify Server that we're not listening anymore. //////Oops - can't do this 'cuz we unbind and stop the InfoService even on device orientation change.
 		sendClientListening(false, listeningPort);
-		
-		super.onDestroy();
+
+        // Release the wifiLock
+        if (wifiLock != null) {
+            Log.v(TAG, "Releasing Wi-Fi Lock");
+            wifiLock.release();
+        }
+
+        // Release the Wake Lock
+        if (wakeLock != null) {
+            Log.v(TAG, "Releasing Wake Lock");
+            wakeLock.release();
+        }
+
+        super.onDestroy();
 	}
 
 	public void sendClientListening(boolean isListening, int port) {
 		listeningPort = port;
 		
-		WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+		WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 		WifiInfo wifiInfo = wifiManager.getConnectionInfo();
 		String macAddress = wifiInfo.getMacAddress();
 		int ipAddress = wifiInfo.getIpAddress();

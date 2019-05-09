@@ -1,13 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21.1.2"
+    compileSdkVersion 28
 
     defaultConfig {
         applicationId "com.briggs_inc.towf_receiver"
-        minSdkVersion 10
-        targetSdkVersion 21
+        targetSdkVersion 28
+        minSdkVersion 14
     }
 
     buildTypes {
@@ -19,7 +18,8 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:support-v4:21.0.3'
-    compile 'com.android.support:gridlayout-v7:21.0.3'
-    compile 'com.android.support:appcompat-v7:21.0.3'
+    implementation 'com.android.support:support-annotations:28.0.0'
+    implementation 'com.android.support:gridlayout-v7:28.0.0'
+    implementation 'com.android.support:appcompat-v7:28.0.0'
+    implementation 'com.android.support:support-v4:28.0.0'
 }

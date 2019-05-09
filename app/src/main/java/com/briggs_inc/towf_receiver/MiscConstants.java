@@ -12,7 +12,8 @@ public class MiscConstants {
     public static final String AF_SAMPLE_RATE_KEY = "AfSampleRate";
 
     public static final int NETWORK_PLAYBACK_SERVICE_FG_NOTIFICATION_ID = 7;
-    
+    public static final int NETWORK_INFO_SERVICE_FG_NOTIFICATION_ID = 8;
+
     public static final int SERVER_STREAMING_CHECK_TIMER_INTERVAL_MS = 7000;  // Check if at least 1 audio data packet has been received in the last X seconds.
 
     // Audio Format According to the SPEC

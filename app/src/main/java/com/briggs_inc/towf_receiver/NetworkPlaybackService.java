@@ -13,9 +13,12 @@ import java.util.Timer;
 import java.util.TimerTask;
 import android.app.IntentService;
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
@@ -67,8 +70,6 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 
 	Timer receivingAudioCheckTimer = new Timer();
 	
-	WifiLock wifiLock;
-    WakeLock wakeLock;
 
 
     public class CheckIfReceivingAudioTask extends TimerTask {
@@ -99,6 +100,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	@Override
 	protected void onHandleIntent(Intent intent) {
 		// Create our instance of Playback Manager
+		Log.v(TAG, "onHandleIntent()");
 
 		Bundle extras = intent.getExtras();
 		if (extras != null && intent.getExtras().getInt(STREAM_PORT_KEY) != 0) {
@@ -106,10 +108,11 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 			streamPort = intent.getExtras().getInt(STREAM_PORT_KEY, 7770);
 			pbMan.addListener(this);
 		} else {
-			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from it's intent. Unable to start service.");
+			Log.v(TAG, "ERROR! NetworkPlaybackService onHandleEvent() cannot get extras from its intent. Unable to start service.");
 			return;
 		}
-		
+
+		Log.v(TAG, "onHandleIntent() starting network manager");
 		// Create our instance of NetworkManager
      	try {
 			netMan = new NetworkManager(streamPort);
@@ -126,45 +129,48 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         currNumReceivedAudioDataPackets = 0;
         lastNumReceivedAudioDataPackets = 0;
         totalNumSamplesWritten = 0;
-		
-		// Wi-Fi Lock
-        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-    	wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "TowfWifiLock");  // Need HIGH_PERF (at least for my Atrix 4G), even though warning says MIN of API Level 12 is needed, and my Atrix 4G is at API Level 10.
-    	Log.v(TAG, "Acquiring Wi-Fi Lock");
-	    wifiLock.acquire();
-	    
-	    // Wake Lock - NOTE: not sure if this is necessary or not. Not needed on my Atrix 4G, but maybe other devices will need this lock.
-	    PowerManager pm = (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
-	    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TowfWakeLock");  // PARTIAL_WAKE_LOCK => CPU will always run, no matter what screen status is.
-	    Log.v(TAG, "Acquiring Wake Lock");
-	    wakeLock.acquire();
-	    
+
         // Socket-related
-        //Log.v(TAG, "Creating New DatagramSocket (for Broadcast)...");
+        Log.v(TAG, "Creating New DatagramSocket (for Broadcast)...");
      	
         isListening = true;
 
         // Start the ReceivingAudio timer
         receivingAudioCheckTimer.schedule(new CheckIfReceivingAudioTask(), 200, 200);  //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
-        
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-		Notification notification = new Notification();
-		notification.tickerText = "ToWF Receiving Audio";
-		notification.icon = android.R.drawable.ic_media_play;
-		notification.flags |= Notification.FLAG_ONGOING_EVENT;
-		notification.setLatestEventInfo(this, "ToWF", "Receiving Audio", pi);
-        startForeground(NETWORK_PLAYBACK_SERVICE_FG_NOTIFICATION_ID, notification);
-        
+
+		// Notification stuff -- required for services (https://developer.android.com/guide/components/services)
+		String NOTIFICATION_CHANNEL_ID = "com.mbriggs.towf_android";
+		String channelName = "ToWF Network Playback Background Service";
+		NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
+		chan.setLightColor(Color.BLUE);
+		chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+		NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+		assert manager != null;
+		manager.createNotificationChannel(chan);
+
+		Intent notificationIntent = new Intent(this, MainActivity.class);
+		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+		Notification notification = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+						.setContentTitle("ToWF")
+						.setContentText("Receiving Audio")
+						.setSmallIcon(android.R.drawable.ic_media_play)
+						.setContentIntent(pendingIntent)
+						.setTicker("ToWF Receiving Audio")
+						.build();
+		startForeground(NETWORK_PLAYBACK_SERVICE_FG_NOTIFICATION_ID, notification);
+
+
+
 		while (isListening) {
 			try {
 				datagram = netMan.receiveDatagram();  // Hangs (blocks) here until packet is received (or times out)... (but doesn't use CPU resources while blocking)
                 if (datagram == null || !isListening) {
                     continue;  // to next iteration of while loop
                 }
+                Log.v(TAG, "got datagram");
 			} catch (SocketTimeoutException ex) {
-				//Log.d(TAG, "ExNote: SocketTimeoutException in NpService.\nExMessage: " + ex.getMessage());
+				Log.d(TAG, "ExNote: SocketTimeoutException in NpService.\nExMessage: " + ex.getMessage());
 				continue;  // to next while loop iteration
 			} catch (SocketException ex) {  // for .setSoTimeout() 
 				// Probably something serious that will keep recurring, so exit this Service
@@ -221,7 +227,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 	
 	@Override
 	public IBinder onBind(Intent intent) {
-		return npServiceBinder;
+    	return npServiceBinder;
 	}
 	
     void setIsListening(boolean b) {
@@ -363,18 +369,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 		// Clean up
 		cleanUp();
 		
-		// Release the wifiLock
-    	if (wifiLock != null) {
-    		Log.v(TAG, "Releasing Wi-Fi Lock");
-    		wifiLock.release();
-    	}
-    	
-    	// Release the Wake Lock
-    	if (wakeLock != null) {
-    		Log.v(TAG, "Releasing Wake Lock");
-    		wakeLock.release();
-    	}
-    	
+
 		super.onDestroy();
 	}
 }
