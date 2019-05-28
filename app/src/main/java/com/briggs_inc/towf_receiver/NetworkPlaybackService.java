@@ -24,6 +24,7 @@ import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -139,25 +140,7 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
         receivingAudioCheckTimer.schedule(new CheckIfReceivingAudioTask(), 200, 200);  //100ms => about 10 fps 'refresh rate' //200ms => about 5 fps 'refresh rate'
 
 		// Notification stuff -- required for services (https://developer.android.com/guide/components/services)
-		String NOTIFICATION_CHANNEL_ID = "com.mbriggs.towf_android";
-		String channelName = "ToWF Network Playback Background Service";
-		NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
-		chan.setLightColor(Color.BLUE);
-		chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-		NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		assert manager != null;
-		manager.createNotificationChannel(chan);
-
-		Intent notificationIntent = new Intent(this, MainActivity.class);
-		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-
-		Notification notification = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-						.setContentTitle("ToWF")
-						.setContentText("Receiving Audio")
-						.setSmallIcon(android.R.drawable.ic_media_play)
-						.setContentIntent(pendingIntent)
-						.setTicker("ToWF Receiving Audio")
-						.build();
+		Notification notification = createNotification();
 		startForeground(NETWORK_PLAYBACK_SERVICE_FG_NOTIFICATION_ID, notification);
 
 
@@ -371,5 +354,45 @@ public class NetworkPlaybackService extends IntentService implements PlaybackMan
 		
 
 		super.onDestroy();
+	}
+
+	private Notification createNotification() {
+    	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			String NOTIFICATION_CHANNEL_ID = "com.mbriggs.towf_android";
+			String channelName = "ToWF Network Playback Background Service";
+			NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
+			chan.setLightColor(Color.BLUE);
+			chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+			NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+			assert manager != null;
+			manager.createNotificationChannel(chan);
+
+			Intent notificationIntent = new Intent(this, MainActivity.class);
+			PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+			Notification notification = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+					.setContentTitle("ToWF")
+					.setContentText("Receiving Audio")
+					.setSmallIcon(android.R.drawable.ic_media_play)
+					.setContentIntent(pendingIntent)
+					.setTicker("ToWF Receiving Audio")
+					.build();
+
+			return notification;
+		} else {
+			Intent notificationIntent = new Intent(this, MainActivity.class);
+			PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+			Notification notification = new Notification.Builder(this)
+					.setPriority(Notification.PRIORITY_LOW)
+					.setContentTitle("ToWF")
+					.setContentText("Receiving Audio")
+					.setSmallIcon(android.R.drawable.ic_media_play)
+					.setContentIntent(pendingIntent)
+					.setTicker("ToWF Receiving Audio")
+					.build();
+
+			return notification;
+		}
 	}
 }

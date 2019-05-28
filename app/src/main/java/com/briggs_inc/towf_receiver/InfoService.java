@@ -122,27 +122,7 @@ public class InfoService extends IntentService {
 	protected void onHandleIntent(Intent intent) {
 		Log.v(TAG, "onHandleIntent()");
 
-		// Notification stuff -- required for services (https://developer.android.com/guide/components/services)
-        String NOTIFICATION_CHANNEL_ID = "com.mbriggs.towf_android";
-        String channelName = "ToWF Info Background Service";
-        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
-        chan.setLightColor(Color.BLUE);
-        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        assert manager != null;
-        manager.createNotificationChannel(chan);
-
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent =
-                PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        Notification notification = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-                        .setContentTitle("ToWF")
-                        .setContentText("Communicating with server")
-                        .setSmallIcon(android.R.drawable.ic_media_play)
-                        .setContentIntent(pendingIntent)
-                        .setTicker("ToWF Communicating with server")
-                        .build();
-
+		Notification notification = createNotification();
         startForeground(NETWORK_INFO_SERVICE_FG_NOTIFICATION_ID, notification);
         Log.v(TAG, "onHandleIntent() started notification");
 
@@ -488,5 +468,47 @@ public class InfoService extends IntentService {
 
     public int getAfSampleRate() {
         return afSampleRate;
+    }
+
+    private Notification createNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Notification stuff -- required for services (https://developer.android.com/guide/components/services)
+            String NOTIFICATION_CHANNEL_ID = "com.mbriggs.towf_android";
+            String channelName = "ToWF Info Background Service";
+            NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
+            chan.setLightColor(Color.BLUE);
+            chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            assert manager != null;
+            manager.createNotificationChannel(chan);
+
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            PendingIntent pendingIntent =
+                    PendingIntent.getActivity(this, 0, notificationIntent, 0);
+            Notification notification = new Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+                    .setContentTitle("ToWF")
+                    .setContentText("Communicating with server")
+                    .setSmallIcon(android.R.drawable.ic_media_play)
+                    .setContentIntent(pendingIntent)
+                    .setTicker("ToWF Communicating with server")
+                    .build();
+
+            return notification;
+
+        } else {
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            PendingIntent pendingIntent =
+                    PendingIntent.getActivity(this, 0, notificationIntent, 0);
+            Notification notification = new Notification.Builder(this)
+                    .setPriority(Notification.PRIORITY_LOW)
+                    .setContentTitle("ToWF")
+                    .setContentText("Communicating with server")
+                    .setSmallIcon(android.R.drawable.ic_media_play)
+                    .setContentIntent(pendingIntent)
+                    .setTicker("ToWF Communicating with server")
+                    .build();
+
+            return notification;
+        }
     }
 }

@@ -248,7 +248,11 @@ public class MainActivity extends AppCompatActivity implements NetworkPlaybackSe
         // Start it only if it's not already existing
         if (!isServiceRunning(InfoService.class)) {
         	Log.v(TAG, "Starting INFO Service");
-        	startForegroundService(infoServiceIntent);
+        	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				startForegroundService(infoServiceIntent);
+			} else {
+				ContextCompat.startForegroundService(this, infoServiceIntent);
+			}
         }
 
         // Setup Drip Sound
@@ -527,7 +531,11 @@ public class MainActivity extends AppCompatActivity implements NetworkPlaybackSe
             npServiceIntent.putExtra(AF_SAMPLE_RATE_KEY, infoService.getAfSampleRate());
         }
         npServiceIntent.putExtra(SEND_MPRS_ENABLED_KEY, sendMissingPacketRequestsTB.isChecked());
-    	startForegroundService(npServiceIntent);
+    	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			startForegroundService(npServiceIntent);
+		} else {
+			ContextCompat.startForegroundService(this, npServiceIntent);
+		}
     	
     	// Bind to the NetworkPlayback Service
     	bindService(npServiceIntent, npServiceConnection, Context.BIND_AUTO_CREATE);
