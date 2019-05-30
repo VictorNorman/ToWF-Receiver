@@ -52,7 +52,7 @@ public class NetworkManager {
       	socket = new DatagramSocket(port);
         dgData = new byte[UDP_DATA_SIZE];
         dg = new DatagramPacket(dgData, dgData.length);
-        socket.setSoTimeout(receiveTimeoutMs);
+        //socket.setSoTimeout(receiveTimeoutMs);
 	}
 	
 	public DatagramPacket receiveDatagram() throws SocketException, SocketTimeoutException, IOException {
