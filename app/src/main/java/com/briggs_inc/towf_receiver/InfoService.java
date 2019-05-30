@@ -88,7 +88,9 @@ public class InfoService extends IntentService {
                 if (isServerStreaming) {
                     isServerStreaming = false;
                     Log.v(TAG, "CheckServiceStoppedStreaming: ***** TRUE *****");
-                    notifyListenersOnServerStoppedStreaming();
+                    // Keep!!! So that can be reset back if needed.
+                    // Do not notify that sever stopped streaming, and keep listening and wait for connection resume
+                    //notifyListenersOnServerStoppedStreaming();
                 }
             }
             receivedAnLppPacket = false;
